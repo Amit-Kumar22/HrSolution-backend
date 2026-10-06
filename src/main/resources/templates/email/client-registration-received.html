@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>We have received your registration</title>
+</head>
+<body style="margin:0;padding:0;">
+
+<div th:replace="~{email/fragments :: header}"></div>
+
+<h2 style="margin:0 0 16px;font-size:19px;color:#1e3a5f;">We have received your registration</h2>
+
+<p style="margin:0 0 16px;">Hello <span th:text="${name}">there</span>,</p>
+
+<p style="margin:0 0 20px;">
+    Thank you for registering <strong th:text="${companyName}">your company</strong> with us.
+</p>
+
+<p style="margin:0 0 20px;">
+    Our team will review the details and activate your account. You will receive another email
+    once it is approved, after which you can sign in to raise manpower requisitions, review
+    deployed staff, approve attendance and download invoices.
+</p>
+
+<p style="margin:0;color:#6b7280;font-size:13px;">
+    Approval usually takes one working day. If you have not heard from us after that, please get
+    in touch.
+</p>
+
+<div th:replace="~{email/fragments :: footer}"></div>
+
+</body>
+</html>

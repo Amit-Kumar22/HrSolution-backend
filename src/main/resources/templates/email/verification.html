@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Confirm your email address</title>
+</head>
+<body style="margin:0;padding:0;">
+
+<div th:replace="~{email/fragments :: header}"></div>
+
+<h2 style="margin:0 0 16px;font-size:19px;color:#1e3a5f;">Confirm your email address</h2>
+
+<p style="margin:0 0 16px;">Hello <span th:text="${name}">there</span>,</p>
+
+<p style="margin:0 0 20px;">
+    Thank you for registering. Please confirm your email address to activate your account.
+</p>
+
+<p style="margin:0 0 20px;">
+    <a th:replace="~{email/fragments :: button(${link}, 'Confirm email address')}"></a>
+</p>
+
+<p style="margin:0 0 8px;color:#6b7280;font-size:13px;">
+    If the button does not work, copy this link into your browser:
+</p>
+<p style="margin:0 0 20px;word-break:break-all;font-size:13px;">
+    <a th:href="${link}" th:text="${link}" style="color:#1e3a5f;">link</a>
+</p>
+
+<p style="margin:0;color:#6b7280;font-size:13px;">
+    This link can be used once and expires in
+    <strong th:text="${expiryHours}">24</strong> hours. If it expires, request a new one from
+    the sign-in page.
+</p>
+
+<div th:replace="~{email/fragments :: footer}"></div>
+
+</body>
+</html>

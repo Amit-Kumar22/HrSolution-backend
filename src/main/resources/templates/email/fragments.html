@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  Shared header, footer and button for all outbound email.
+
+  Styles are inline rather than in a <style> block on purpose: Gmail, Outlook
+  and most mobile clients strip or ignore embedded stylesheets, so anything not
+  inlined simply does not render. Layout uses tables for the same reason -
+  flexbox is unreliable in Outlook's Word-based renderer.
+-->
+<body>
+
+<div th:fragment="header" style="margin:0;padding:0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+           style="background-color:#f4f5f7;padding:24px 0;font-family:Helvetica,Arial,sans-serif;">
+        <tr>
+            <td align="center">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600"
+                       style="max-width:600px;background-color:#ffffff;border-radius:8px;overflow:hidden;">
+                    <tr>
+                        <td style="background-color:#1e3a5f;padding:20px 28px;">
+                            <span style="color:#ffffff;font-size:20px;font-weight:bold;letter-spacing:0.3px;">
+                                HR Solution
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:28px;color:#24292f;font-size:15px;line-height:1.6;">
+</div>
+
+<div th:fragment="footer" style="margin:0;padding:0;">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding:18px 28px;background-color:#f4f5f7;color:#6b7280;font-size:12px;line-height:1.5;">
+                            This is an automated message, so please do not reply to it.<br/>
+                            If you did not expect this email you can safely ignore it.
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<!--
+  Primary action button. Always shown alongside the raw URL in the templates,
+  because corporate mail filters frequently rewrite or strip anchor hrefs and
+  the recipient then has nothing to click.
+-->
+<a th:fragment="button(url, label)" th:href="${url}" th:text="${label}"
+   style="display:inline-block;background-color:#1e3a5f;color:#ffffff;text-decoration:none;
+          padding:12px 24px;border-radius:6px;font-weight:bold;font-size:15px;">Open</a>
+
+</body>
+</html>

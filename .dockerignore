@@ -1,0 +1,15 @@
+# Keep the build context small and never ship local state or secrets.
+target/
+build/
+.gradle/
+.git/
+.github/
+.idea/
+*.iml
+.env
+.env.*
+!.env.example
+docs/
+*.md
+uploads/
+.DS_Store

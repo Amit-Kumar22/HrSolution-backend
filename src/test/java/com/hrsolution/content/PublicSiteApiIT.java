@@ -354,6 +354,23 @@ class PublicSiteApiIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("content can be created without the optional displayOrder")
+    void createWithoutOptionalPrimitive() throws Exception {
+        // Same Jackson 3 primitive issue as the login case: displayOrder is an
+        // int, and omitting it used to reject the whole body.
+        mockMvc.perform(post("/api/v1/testimonials")
+                        .header(HttpHeaders.AUTHORIZATION, bearerFor(RoleName.ADMIN))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"clientName":"Rajesh Kulkarni",
+                                 "content":"They handled our compliance end to end."}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.displayOrder").value(0))
+                .andExpect(jsonPath("$.published").value(false));
+    }
+
+    @Test
     @DisplayName("a published service's slug cannot be changed")
     void publishedSlugIsProtected() throws Exception {
         String adminToken = bearerFor(RoleName.ADMIN);

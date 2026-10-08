@@ -439,3 +439,210 @@ The one cookie that exists is the refresh token, defended by:
 Spring's CSRF token would add nothing, and would require every client to fetch
 and echo a token for endpoints that are already protected. Revisit this if a
 cookie is ever used to authenticate ordinary API calls.
+
+---
+
+## 24. Phase 3: the MapStruct default-method trap
+
+A convenience helper on a mapper silently corrupted **136 fields** across two
+mappers. Worth reading before adding any method to a `@Mapper` interface.
+
+```java
+@Mapper
+public interface CompanySettingsMapper {
+    @Mapping(target = "logoUrl", expression = "java(publicUrl(entity.getLogoPath()))")
+    PublicCompanyProfileResponse toPublicProfile(CompanySettings entity);
+
+    default String publicUrl(String storageKey) {   // <-- the bug
+        return PublicFileUrls.of(storageKey);
+    }
+}
+```
+
+**MapStruct treats any non-private method on a mapper as a candidate *type
+conversion* for its signature.** A `String -> String` method is applicable to
+every String property, so MapStruct applied it to all of them:
+
+```java
+legalName = publicUrl( entity.getLegalName() );   // generated
+tradeName = publicUrl( entity.getTradeName() );
+gstin     = publicUrl( entity.getGstin() );       // ...and 84 more
+```
+
+The company's legal name came back as
+`"/api/v1/public/files/Shree Manpower Services Private Limited"`. 87 fields in
+`CompanySettingsMapperImpl`, 49 in `ContentMapperImpl`.
+
+Nothing warns. It compiles, the app starts, and every string in those responses
+is quietly wrong. It was caught only because a Phase 1 unit test asserted an
+exact `legalName`.
+
+**The fix** is to call the helper statically and declare the class on the
+mapper, because a MapStruct `expression` is pasted verbatim into the generated
+class and does not inherit the interface file's imports:
+
+```java
+@Mapper(imports = PublicFileUrls.class)
+...
+@Mapping(target = "logoUrl", expression = "java(PublicFileUrls.of(entity.getLogoPath()))")
+```
+
+Rules now followed everywhere:
+
+- **No helper methods on mapper interfaces.** Put them in a static utility class
+  and reference it via `@Mapper(imports = ...)` — `PublicFileUrls`,
+  `EnquiryReference`.
+- If a method genuinely must live on the mapper, annotate it `@Named` so
+  MapStruct only selects it when a mapping asks for it by name
+  (`DocumentMapper.downloadUrl`).
+- `MapperHelperLeakTest` asserts the outcome rather than the mechanism, so the
+  same mistake is caught however it is reintroduced.
+
+---
+
+## 25. Jackson 3 rejects omitted primitives by default
+
+Jackson 3 flipped `DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES` to
+**enabled**; Jackson 2 had it disabled. Left on, an omitted primitive field
+rejects the **entire request body**:
+
+```
+JSON parse error: Cannot map `null` into type `boolean`
+```
+
+which the client sees as a bare `MALFORMED_REQUEST` with no indication of which
+field was at fault.
+
+This broke `POST /auth/login` for any client that omitted `rememberMe` — i.e.
+most of them. It shipped in Phase 2 and went unnoticed because every test and
+every manual call happened to send the field.
+
+Disabled in `application.properties`:
+
+```properties
+spring.jackson.deserialization.fail-on-null-for-primitives=false
+```
+
+An omitted primitive now takes its Java default (`0` / `false`), which is what
+Jackson 2 did and what every existing API client expects. Genuinely required
+fields are still enforced properly, and more clearly:
+
+- `consentGiven` (primitive `boolean` + `@AssertTrue`) now defaults to `false`
+  and fails that constraint, producing a field-level error on `consentGiven`
+  instead of an opaque parse failure.
+- A required value that has no meaningful default should be a **boxed type with
+  `@NotNull`**, not a primitive.
+
+---
+
+## 26. `@ConditionalOnMissingBean` does not work on a `@Component`
+
+`NoOpVirusScanner` was annotated `@Component @ConditionalOnMissingBean(VirusScanner.class)`,
+intending "register me only if nothing else provides a scanner". The whole
+application then failed to start:
+
+```
+No qualifying bean of type 'VirusScanner' available
+```
+
+pointing at the only class that implements it.
+
+The condition is evaluated against the bean definitions registered so far, and
+during component scanning the class matches **itself** as an existing
+`VirusScanner` — so the condition fails and no bean is registered at all.
+
+`@ConditionalOnMissingBean` belongs on a `@Bean` method, which is the only place
+the ordering guarantees hold. Moved to `StorageConfig.noOpVirusScanner()`.
+Defining any other `VirusScanner` bean now replaces it, as intended.
+
+---
+
+## 27. `@PathVariable("*")` is not a thing
+
+`PublicFileController` serves files whose storage keys contain slashes
+(`logos/2026/10/uuid.png`), so the mapping ends in `**`. The handler was
+declared as:
+
+```java
+public ResponseEntity<...> serve(@PathVariable("*") String key, HttpServletRequest request)
+```
+
+A multi-segment `**` wildcard has no variable name to bind, so every request
+failed with `MissingPathVariableException` → 500. The parameter was also
+redundant: the key is recovered from `request.getRequestURI()` anyway. Removed.
+
+Not caught by the first test run because the integration test did not exercise
+the route; it was found by a manual `curl`. `PublicSiteApiIT` now covers upload
+→ public serve → byte comparison.
+
+---
+
+## 28. Content-based file type detection, and what the no-op scanner does not do
+
+Uploads are validated by **reading the leading bytes**, never by the file name
+or the `Content-Type` header — both of which the client controls.
+
+The attack this stops: upload HTML containing script as `logo.png` declaring
+`image/png`, have the server store it and serve it back, and the browser renders
+it as HTML **on this application's origin**. That is stored XSS with the whole
+session exposed. Extension or header validation would not stop it;
+`FileTypeDetector` does, and `FileTypeDetectorTest` pins it down.
+
+SVG is deliberately **absent** from the allowlist. It is XML, it can carry
+script, and browsers execute that script when the file is served inline.
+
+Related decisions in `LocalStorageService`:
+
+- The uploaded file name **never contributes to the path**. It is replaced by a
+  UUID, keeping only an extension matched against `[a-z0-9]{1,10}`. Traversal
+  becomes structurally impossible rather than filtered — and two workers
+  uploading `aadhaar.pdf` cannot overwrite each other.
+- Every resolved path is re-checked to be inside the storage root. Keys are
+  server-generated so this should be unreachable, but the cost of being wrong is
+  arbitrary file read or write.
+- Writes go to a temp file and are moved atomically, so a crash mid-write cannot
+  leave a truncated file that looks complete.
+- Storage lives **outside any web-served directory**, so private files can only
+  be reached through the authenticated download endpoint.
+
+**Virus scanning is a no-op by default.** `VirusScanner` exists so a real
+scanner is a new bean rather than a change to `DocumentService`, but as shipped
+nothing scans for malware. What is enforced: content-based type detection, a
+size cap, storage outside the web root, and `Content-Disposition: attachment` on
+private downloads. Those stop a malicious upload being executed by this
+application or rendered in a browser; they do not stop a user downloading an
+infected file onto their own machine.
+
+---
+
+## 29. Spam: flag, never reject
+
+The public enquiry and contact forms use three cheap signals — a CSS-hidden
+honeypot field, time-to-submit, and link/phrase heuristics (`SpamGuard`).
+
+A hit **stores the submission flagged as spam** rather than refusing it. The
+asymmetry is the point: a false positive on the enquiry form throws away a real
+sales lead, whereas a flagged row is simply hidden from the default pipeline
+view and recoverable by a human in one click. The acknowledgement is byte
+identical either way — telling a bot it was detected only helps it iterate — and
+only unflagged submissions trigger the notification email, or that email would
+be worthless.
+
+Ahead of all of it sits a per-IP rate limit of 5/hour, because serving a 429
+costs nothing while every submission that gets through is a row someone reads.
+
+---
+
+## 30. The public company profile is a separate record, not a filtered view
+
+`PublicCompanyProfileResponse` omits the bank account and IFSC, the TAN, and the
+PF/ESI/PT registration codes. A published bank account is an invitation to
+invoice fraud; the registration codes are useful mainly to someone impersonating
+the company. GSTIN, PAN and CIN **are** included — Indian companies are required
+to display them, and they routinely appear in a website footer.
+
+It is a distinct record rather than a filtered projection of
+`CompanySettingsResponse` so that adding a field to the admin DTO cannot
+accidentally publish it. Combined with `unmappedTargetPolicy=ERROR`, the
+compiler checks that every field of the public record *is* mapped, while
+anything the record omits is structurally unpublishable.

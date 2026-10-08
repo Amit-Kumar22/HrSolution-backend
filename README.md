@@ -5,7 +5,7 @@ and site management, manpower requisitions, recruitment, worker records,
 deployment, attendance, payroll with statutory deductions (PF / ESI / PT), GST
 invoicing and compliance tracking.
 
-**Status: Phase 2 (Auth & RBAC) complete.** See [Delivery phases](#delivery-phases).
+**Status: Phase 3 (Public website APIs & enquiries) complete.** See [Delivery phases](#delivery-phases).
 
 ---
 
@@ -164,10 +164,18 @@ src/main/java/com/hrsolution/
     web/                    ApiPaths, PageResponse, CorrelationIdFilter
   settings/                 company profile (the Phase 1 worked example)
     controller/ service/ repository/ entity/ dto/ mapper/
+  auth/ user/ audit/        Phase 2: authentication, RBAC, security audit
+  catalog/                  Phase 3: manpower categories and skill levels
+  content/                  Phase 3: services, industries, testimonials + the public site
+  enquiry/                  Phase 3: enquiry pipeline and the contact inbox
+  document/                 Phase 3: upload metadata, authenticated downloads
+  notification/             email (Thymeleaf templates, async with retry)
+  seo/                      robots.txt and sitemap.xml
 src/main/resources/
   application.properties            shared config
   application-{local,dev,prod}.properties
-  db/migration/                     Flyway — V1__baseline_company_settings.sql
+  db/migration/                     Flyway — V1 baseline, V2 auth/RBAC, V3 public site
+  templates/email/                  Thymeleaf email templates
 src/test/java/com/hrsolution/
   support/                  AbstractIntegrationTest, TestcontainersConfiguration
 ```
@@ -359,6 +367,102 @@ Full permission matrix: [`docs/rbac.md`](docs/rbac.md).
 
 ---
 
+## The public website API
+
+Everything the marketing site needs, with no authentication. All of it is
+gathered in `PublicSiteController` so the question "what can the internet see?"
+is answered by reading one file.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/v1/public/company-profile` | Name, address, phone, GSTIN, PAN, logo URL, social links |
+| `GET /api/v1/public/services` | Published service pages, ordered |
+| `GET /api/v1/public/services/{slug}` | One service page; 404 if unpublished |
+| `GET /api/v1/public/industries` | Industries served |
+| `GET /api/v1/public/testimonials` | Published client quotes |
+| `GET /api/v1/public/manpower-categories` | Active categories, for the enquiry dropdown |
+| `GET /api/v1/public/files/{key}` | Logos and images — **public assets only** |
+| `POST /api/v1/public/enquiries` | Manpower requirement form |
+| `POST /api/v1/public/contact-messages` | Contact Us form |
+| `GET /robots.txt`, `GET /sitemap.xml` | SEO; at the root, as crawlers require |
+
+### What the public endpoints deliberately do not expose
+
+- **Unpublished drafts.** Absent from the lists, and 404 by direct slug — a
+  work-in-progress page cannot be read by guessing its URL.
+- **Bank and statutory details.** `PublicCompanyProfileResponse` omits the bank
+  account, IFSC, TAN and the PF/ESI/PT registration codes. A published bank
+  account invites invoice fraud. GSTIN, PAN and CIN *are* included, since Indian
+  companies must display them.
+- **Private files.** `/public/files/{key}` serves only documents flagged as
+  public assets. Anything else returns 404 rather than 403, so the route cannot
+  confirm that a private document exists.
+- **Internal notes** on enquiries, and the ids of contact messages.
+
+### Spam protection on the two forms
+
+Three layered signals, and a deliberate choice about what to do with a hit.
+
+| Signal | How |
+|---|---|
+| Rate limit | 5 submissions/hour per IP, returns 429 with `Retry-After` |
+| Honeypot | Send the hidden `website` field empty; a bot fills it |
+| Timing | Optional `formRenderedAt` (epoch millis); under 2s is not human |
+| Content | More than two links, or known spam phrases |
+
+A suspected submission is **stored and flagged, never rejected**. A false
+positive on the enquiry form throws away a real sales lead, whereas a flagged
+row is just hidden from the default pipeline view and recoverable in one click.
+The acknowledgement is identical either way, and only unflagged submissions send
+the notification email.
+
+Staff see the real pipeline at `GET /api/v1/enquiries`; add `includeSpam=true`
+or `status=SPAM` to review what was caught, and the reason is in the internal
+notes.
+
+### SEO
+
+`robots.txt` emits `Disallow: /` unless `app.site.seo-indexing-enabled=true`.
+**Indexing is opt-in**: a staging host that gets indexed competes with
+production for the same search terms and is awkward to undo.
+
+`sitemap.xml` is generated from the published content, so it can never list a
+page that does not exist. Set `app.site.base-url` to the address visitors
+actually use — not this API's.
+
+---
+
+## File uploads
+
+| Endpoint | Accepts |
+|---|---|
+| `POST /api/v1/settings/company/logo` | PNG/JPEG/GIF, 2 MB — needs `SETTINGS_MANAGE` |
+| `POST /api/v1/services/{id}/hero-image` | PNG/JPEG/GIF, 2 MB — needs `CONTENT_MANAGE` |
+| `POST /api/v1/testimonials/{id}/image` | PNG/JPEG/GIF, 2 MB — `?logo=true\|false` |
+| `GET /api/v1/documents/{id}/download` | Authenticated download, any document |
+
+**The file type is detected from the leading bytes, never from the name or the
+`Content-Type` header.** Both are client-controlled, so validating them is
+security theatre: upload HTML as `logo.png`, have it served back, and the
+browser renders script on this application's origin. Renaming a file does not
+get it past validation. SVG is deliberately not allowed — it is XML that can
+carry script.
+
+The uploaded file name never contributes to the storage path; it is replaced by
+a UUID keeping only a sanitised extension, which makes traversal structurally
+impossible and stops two workers' `aadhaar.pdf` overwriting each other.
+
+Files live under `app.storage.local-path` (default `./uploads`, gitignored),
+**outside any web-served directory** — private documents are reachable only
+through the authenticated endpoint. Swap `StorageService` for an S3
+implementation without touching a caller.
+
+> **Virus scanning is not configured.** `VirusScanner` is a no-op by default;
+> provide any other `VirusScanner` bean to enable it. Content-based type
+> detection, the size cap and authenticated-only downloads are still enforced.
+
+---
+
 ## Database backups
 
 MySQL is the single source of truth — uploaded documents aside, everything is in
@@ -402,8 +506,8 @@ Points worth being deliberate about:
 |---|---|---|
 | 1 | Foundation — build, profiles, `common` module, Flyway, Docker, Swagger | **Done** |
 | 2 | Auth & RBAC — users, roles, permissions, JWT access + refresh rotation with reuse detection, lockout, rate limiting, email verification, password reset, sessions, security audit | **Done** |
-| 3 | Public website APIs & enquiries — company profile, services, testimonials, enquiry/contact forms | Next |
-| 4 | Clients, sites, contracts, rate cards, manpower categories, client approval | |
+| 3 | Public website APIs & enquiries — company profile, services, industries, testimonials, enquiry/contact forms, file storage, SEO | **Done** |
+| 4 | Clients, sites, contracts, rate cards, client approval | Next |
 | 5 | Recruitment — jobs, candidates, applications pipeline, interviews | |
 | 6 | Workers, documents (encrypted fields), deployment, requisition workflow | |
 | 7 | Attendance & leave — supervisor entry, Excel upload, client approval, locking | |

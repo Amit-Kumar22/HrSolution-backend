@@ -86,6 +86,8 @@ whenever a 15-minute token happens to expire.
 | **COMPLIANCE** | | | | | | | | | |
 | `COMPLIANCE_MANAGE` | ✅ | ✅ | · | · | · | ✅ | · | · | · |
 | `COMPLIANCE_READ` | ✅ | ✅ | · | · | · | ✅ | · | · | · |
+| **CONTENT** | | | | | | | | | |
+| `CONTENT_MANAGE` | ✅ | ✅ | · | · | · | · | · | · | · |
 | **REPORT** | | | | | | | | | |
 | `REPORT_VIEW` | ✅ | ✅ | ✅ | ✅ | · | ✅ | · | · | · |
 | **ENQUIRY** | | | | | | | | | |
@@ -101,7 +103,7 @@ whenever a 15-minute token happens to expire.
 | `SELF_PAYSLIP_READ` | ✅ | · | · | · | · | · | · | ✅ | · |
 | `SELF_PROFILE_MANAGE` | ✅ | · | · | · | ✅ | · | ✅ | ✅ | ✅ |
 
-Counts: **SA** 40, **AD** 33, **HR** 11, **OM** 14, **SS** 5, **AC** 12, **CL** 8, **WK** 4, **CD** 3
+Counts: **SA** 41, **AD** 34, **HR** 11, **OM** 14, **SS** 5, **AC** 12, **CL** 8, **WK** 4, **CD** 3
 
 ## Deliberate separations
 
@@ -132,6 +134,14 @@ let them.
 bank account numbers are visible only to `SUPER_ADMIN` and `ACCOUNTS`, who need
 them to file returns and run bank transfers. Everyone else sees
 `XXXX-XXXX-1234`.
+
+**`CONTENT_MANAGE` is separate from `SETTINGS_MANAGE`.** Rewording a services
+page or adding a manpower category is routine marketing and master-data work,
+and both SUPER_ADMIN and ADMIN hold it. `SETTINGS_MANAGE` reaches statutory
+configuration, the GST rate and the invoice number series, so it stays with
+SUPER_ADMIN alone. Reading the manpower category list needs no permission at
+all beyond being signed in — requisition, deployment and payroll screens all
+depend on it.
 
 ## Changing the matrix
 

@@ -3,8 +3,23 @@
 Target schema for the whole platform. Tables are grouped by module, and each is
 tagged with the phase that creates it — so this doubles as the schema roadmap.
 
-**Created so far (Phase 1):** `company_settings`, plus Flyway's own
-`flyway_schema_history`.
+**Created so far (Phases 1–3):**
+
+- **V1** — `company_settings`
+- **V2** — `users`, `roles`, `permissions`, `role_permissions`, `user_roles`,
+  `refresh_tokens`, `verification_tokens`, `password_reset_tokens`, `audit_logs`
+- **V3** — `manpower_categories`, `service_offerings`, `industries`,
+  `testimonials`, `enquiries`, `contact_messages`, `documents`
+
+Note that `manpower_categories` moved forward from Phase 4 to Phase 3: the public
+enquiry form needs a category dropdown, and a free-text field would produce
+unusable data on the one form the sales team actually reads. Phase 4 builds
+skills and rate cards on top of it rather than creating it.
+
+Two tables were also added that the original plan did not list —
+`service_offerings` and `industries` — because the marketing copy has to be
+editable without a deployment, which is the whole reason they are rows rather
+than template files.
 
 Every table inherits the `BaseEntity` columns and they are omitted from the
 diagrams below to keep them readable:
@@ -593,8 +608,8 @@ the error the user saw can all be joined after the fact.
 |---|---|
 | 1 | `company_settings` |
 | 2 | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `refresh_tokens`, `verification_tokens`, `password_reset_tokens`, `audit_logs` |
-| 3 | `enquiries`, `contact_messages`, `testimonials`, `documents` |
-| 4 | `clients`, `client_users`, `client_sites`, `client_contracts`, `rate_cards`, `manpower_categories`, `skills`, `category_skills` |
+| 3 | `enquiries`, `contact_messages`, `testimonials`, `documents`, `service_offerings`, `industries`, `manpower_categories` (moved up from Phase 4) |
+| 4 | `clients`, `client_users`, `client_sites`, `client_contracts`, `rate_cards`, `skills`, `category_skills` |
 | 5 | `jobs`, `candidates`, `applications`, `application_status_history`, `interviews` |
 | 6 | `requisitions`, `requisition_status_history`, `workers`, `worker_bank_details`, `worker_documents`, `salary_structures`, `deployments` |
 | 7 | `attendance_sheets`, `attendance_entries`, `leave_requests`, `holidays` |

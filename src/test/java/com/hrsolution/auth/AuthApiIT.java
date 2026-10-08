@@ -239,6 +239,43 @@ class AuthApiIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("login works when the client omits the optional rememberMe field")
+    void loginWithoutRememberMe() throws Exception {
+        String email = verifiedUserEmail();
+
+        // Jackson 3 turns FAIL_ON_NULL_FOR_PRIMITIVES on by default, which
+        // rejected the whole body with "Cannot map `null` into type `boolean`"
+        // whenever this field was omitted - and most clients would omit it.
+        // Disabled in application.properties; this test keeps it disabled.
+        mockMvc.perform(post(AUTH + "/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s","password":"%s"}
+                                """.formatted(email, PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("an omitted consent flag is a field error, not a parse failure")
+    void omittedConsentIsAFieldError() throws Exception {
+        // consentGiven is a primitive boolean carrying @AssertTrue. Omitted, it
+        // now defaults to false and fails that constraint - giving a clear
+        // field-level error instead of MALFORMED_REQUEST, which told the caller
+        // nothing about which field was at fault.
+        mockMvc.perform(post(AUTH + "/register/candidate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"firstName":"Asha","email":"%s","phone":"9876543210",
+                                 "password":"%s"}
+                                """.formatted(uniqueEmail(), PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[*].field",
+                        org.hamcrest.Matchers.hasItem("consentGiven")));
+    }
+
+    @Test
     @DisplayName("refresh without a cookie is a 401, not a 500")
     void refreshWithoutCookie() throws Exception {
         mockMvc.perform(post(AUTH + "/refresh"))

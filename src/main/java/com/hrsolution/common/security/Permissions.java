@@ -78,6 +78,16 @@ public final class Permissions {
     public static final String SETTINGS_MANAGE = "SETTINGS_MANAGE";
     public static final String AUDIT_VIEW = "AUDIT_VIEW";
 
+    /**
+     * Editable marketing content: services, industries, testimonials and the
+     * manpower category master.
+     *
+     * <p>Separate from {@link #SETTINGS_MANAGE} because rewording a services
+     * page is routine marketing work, whereas SETTINGS_MANAGE reaches statutory
+     * configuration and the invoice number series.
+     */
+    public static final String CONTENT_MANAGE = "CONTENT_MANAGE";
+
     // ---------- Self-service ----------
     // Holding one of these is necessary but never sufficient: the services also
     // check that the record belongs to the caller, so a WORKER cannot read
@@ -101,7 +111,7 @@ public final class Permissions {
             PAYROLL_READ, PAYROLL_PROCESS,
             INVOICE_READ, INVOICE_MANAGE, PAYMENT_MANAGE,
             COMPLIANCE_READ, COMPLIANCE_MANAGE,
-            REPORT_VIEW, ENQUIRY_MANAGE, SETTINGS_MANAGE, AUDIT_VIEW,
+            REPORT_VIEW, ENQUIRY_MANAGE, SETTINGS_MANAGE, AUDIT_VIEW, CONTENT_MANAGE,
             SELF_PROFILE_MANAGE, SELF_ATTENDANCE_READ, SELF_PAYSLIP_READ,
             SELF_LEAVE_MANAGE, SELF_APPLICATION_MANAGE);
 

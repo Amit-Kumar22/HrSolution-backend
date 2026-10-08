@@ -159,6 +159,17 @@ public class AuthProperties {
          *  refresh roughly every 15 minutes, but several tabs may do so at once. */
         private final Rule refresh = new Rule(30, Duration.ofMinutes(1));
 
+        /**
+         * Per IP, on the public enquiry and contact forms.
+         *
+         * <p>Hourly rather than per-minute, and fairly tight: a genuine visitor
+         * submits one enquiry, maybe two if they mistyped something. This is the
+         * first line of spam defence, ahead of the honeypot - it costs nothing
+         * to serve a 429, whereas every submission that gets through is a row
+         * someone has to look at.
+         */
+        private final Rule publicForm = new Rule(5, Duration.ofHours(1));
+
         @Getter
         @Setter
         public static class Rule {

@@ -35,14 +35,22 @@ class CompanySettingsServiceTest {
     @Mock
     private CompanySettingsRepository companySettingsRepository;
 
+    /**
+     * Phase 3 added logo upload to this service. Mocked rather than exercised:
+     * these tests cover the profile read/write logic, and the upload path has
+     * its own coverage in LocalStorageServiceTest and FileTypeDetectorTest.
+     */
+    @Mock
+    private com.hrsolution.document.service.DocumentService documentService;
+
     private final CompanySettingsMapper companySettingsMapper = new CompanySettingsMapperImpl();
 
     private CompanySettingsService companySettingsService;
 
     @BeforeEach
     void setUp() {
-        companySettingsService =
-                new CompanySettingsService(companySettingsRepository, companySettingsMapper);
+        companySettingsService = new CompanySettingsService(
+                companySettingsRepository, companySettingsMapper, documentService);
     }
 
     @Test

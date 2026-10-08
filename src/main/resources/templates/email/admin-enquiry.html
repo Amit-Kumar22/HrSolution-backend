@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>New manpower enquiry</title>
+</head>
+<body style="margin:0;padding:0;">
+
+<div th:replace="~{email/fragments :: header}"></div>
+
+<h2 style="margin:0 0 6px;font-size:19px;color:#1e3a5f;">New manpower enquiry</h2>
+<p style="margin:0 0 20px;color:#6b7280;font-size:13px;">
+    Reference <strong th:text="${reference}">ENQ-000000</strong>
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+       style="margin:0 0 20px;font-size:14px;border-collapse:collapse;">
+    <tr>
+        <td style="padding:8px 0;color:#6b7280;width:160px;">Company</td>
+        <td style="padding:8px 0;font-weight:bold;" th:text="${companyName}">Company</td>
+    </tr>
+    <tr>
+        <td style="padding:8px 0;color:#6b7280;">Contact person</td>
+        <td style="padding:8px 0;" th:text="${contactPerson}">Name</td>
+    </tr>
+    <tr>
+        <td style="padding:8px 0;color:#6b7280;">Phone</td>
+        <td style="padding:8px 0;font-weight:bold;" th:text="${phone}">Phone</td>
+    </tr>
+    <tr th:if="${email != null}">
+        <td style="padding:8px 0;color:#6b7280;">Email</td>
+        <td style="padding:8px 0;" th:text="${email}">Email</td>
+    </tr>
+    <tr th:if="${city != null}">
+        <td style="padding:8px 0;color:#6b7280;">City</td>
+        <td style="padding:8px 0;" th:text="${city}">City</td>
+    </tr>
+    <tr>
+        <td style="padding:8px 0;color:#6b7280;">Requirement</td>
+        <td style="padding:8px 0;" th:text="${categoryLabel}">Category</td>
+    </tr>
+    <tr th:if="${numberOfWorkers != null}">
+        <td style="padding:8px 0;color:#6b7280;">Workers needed</td>
+        <td style="padding:8px 0;font-weight:bold;" th:text="${numberOfWorkers}">0</td>
+    </tr>
+</table>
+
+<div th:if="${message != null}"
+     style="margin:0 0 20px;padding:14px;background-color:#f4f5f7;border-radius:6px;">
+    <p style="margin:0 0 6px;color:#6b7280;font-size:12px;text-transform:uppercase;">Message</p>
+    <p style="margin:0;white-space:pre-line;" th:text="${message}">Message body</p>
+</div>
+
+<p style="margin:0;color:#6b7280;font-size:13px;">
+    The enquiry is in the portal with status <strong>NEW</strong>. Assign it to someone so it
+    does not sit unclaimed.
+</p>
+
+<div th:replace="~{email/fragments :: footer}"></div>
+
+</body>
+</html>

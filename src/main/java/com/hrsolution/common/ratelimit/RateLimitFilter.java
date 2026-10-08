@@ -55,7 +55,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 ApiPaths.V1 + "/auth/register/client", limits.getRegister(),
                 ApiPaths.V1 + "/auth/forgot-password", limits.getForgotPassword(),
                 ApiPaths.V1 + "/auth/resend-verification", limits.getForgotPassword(),
-                ApiPaths.V1 + "/auth/refresh", limits.getRefresh());
+                ApiPaths.V1 + "/auth/refresh", limits.getRefresh(),
+                // The public forms. Anonymous and world-reachable, so these are
+                // the endpoints most in need of a limit.
+                ApiPaths.PUBLIC_V1 + "/enquiries", limits.getPublicForm(),
+                ApiPaths.PUBLIC_V1 + "/contact-messages", limits.getPublicForm());
     }
 
     @Override

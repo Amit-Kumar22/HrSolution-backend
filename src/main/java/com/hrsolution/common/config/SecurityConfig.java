@@ -103,8 +103,16 @@ public class SecurityConfig {
                                 ApiPaths.V1 + "/auth/reset-password")
                         .permitAll()
 
-                        // ---- Public website feeds and form submissions ----
+                        // ---- Public website feeds, form submissions and assets ----
+                        // Everything the anonymous marketing site needs. The
+                        // public file route re-checks each document's
+                        // publicAsset flag, so this does not expose storage.
                         .requestMatchers(ApiPaths.PUBLIC_V1 + "/**").permitAll()
+
+                        // ---- SEO ----
+                        // Only honoured by crawlers at the domain root, so they
+                        // cannot live under /api/v1.
+                        .requestMatchers("/robots.txt", "/sitemap.xml").permitAll()
 
                         // ---- Infrastructure ----
                         // Health and info only; the remaining actuator

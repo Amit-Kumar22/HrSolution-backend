@@ -1,7 +1,12 @@
 package com.hrsolution.settings.service;
 
 import com.hrsolution.common.config.CachingConfig;
+import com.hrsolution.common.storage.FileTypeDetector;
+import com.hrsolution.document.entity.DocumentOwnerType;
+import com.hrsolution.document.entity.StoredDocument;
+import com.hrsolution.document.service.DocumentService;
 import com.hrsolution.settings.dto.CompanySettingsResponse;
+import com.hrsolution.settings.dto.PublicCompanyProfileResponse;
 import com.hrsolution.settings.dto.UpdateCompanySettingsRequest;
 import com.hrsolution.settings.entity.CompanySettings;
 import com.hrsolution.settings.mapper.CompanySettingsMapper;
@@ -12,6 +17,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Reads and updates the single company profile row.
@@ -34,6 +40,7 @@ public class CompanySettingsService {
 
     private final CompanySettingsRepository companySettingsRepository;
     private final CompanySettingsMapper companySettingsMapper;
+    private final DocumentService documentService;
 
     @Transactional(readOnly = true)
     @Cacheable(CachingConfig.COMPANY_SETTINGS)
@@ -58,6 +65,40 @@ public class CompanySettingsService {
         log.info("Company profile updated: legalName='{}', gstin='{}'",
                 saved.getLegalName(), saved.getGstin());
         return companySettingsMapper.toResponse(saved);
+    }
+
+    /**
+     * The trimmed profile for the public website.
+     *
+     * <p>Cached under its own key alongside the full profile - the public site
+     * is the highest-traffic consumer, and it is anonymous traffic, so it should
+     * not reach the database on every page view.
+     */
+    @Transactional(readOnly = true)
+    @Cacheable(cacheNames = CachingConfig.COMPANY_SETTINGS, key = "'public'")
+    public PublicCompanyProfileResponse getPublicProfile() {
+        return companySettingsMapper.toPublicProfile(load());
+    }
+
+    /**
+     * Replaces the company logo.
+     *
+     * <p>Its own endpoint rather than a field on the profile form, so saving a
+     * changed phone number cannot blank the logo - and so the upload can be
+     * validated as an image by content rather than by file name.
+     */
+    @Transactional
+    @CacheEvict(cacheNames = CachingConfig.COMPANY_SETTINGS, allEntries = true)
+    public CompanySettingsResponse uploadLogo(MultipartFile file) {
+        CompanySettings settings = load();
+
+        StoredDocument document = documentService.upload(
+                file, DocumentOwnerType.COMPANY_LOGO, null, FileTypeDetector.IMAGES);
+
+        settings.setLogoPath(document.getStorageKey());
+        log.info("Company logo replaced; stored as {}", document.getStorageKey());
+
+        return companySettingsMapper.toResponse(companySettingsRepository.saveAndFlush(settings));
     }
 
     private CompanySettings load() {

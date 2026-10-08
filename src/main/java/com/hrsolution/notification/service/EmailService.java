@@ -13,6 +13,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -89,6 +90,50 @@ public class EmailService {
                 "email/admin-client-registration",
                 Map.of("companyName", companyName, "contactName", contactName,
                         "contactEmail", contactEmail, "contactPhone", contactPhone));
+    }
+
+    /**
+     * Tells the sales team a manpower enquiry has arrived.
+     *
+     * <p>Only called for submissions the spam guard cleared - a notification
+     * that also forwards honeypot hits is a notification people stop reading.
+     */
+    @Async
+    public void sendAdminEnquiryNotification(String reference, String companyName,
+                                             String contactPerson, String phone, String email,
+                                             String categoryLabel, Integer numberOfWorkers,
+                                             String city, String message) {
+        // HashMap, not Map.of: several of these are legitimately null on a form
+        // that only requires three fields, and Map.of rejects null values.
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("reference", reference);
+        variables.put("companyName", companyName);
+        variables.put("contactPerson", contactPerson);
+        variables.put("phone", phone);
+        variables.put("email", email);
+        variables.put("categoryLabel", categoryLabel);
+        variables.put("numberOfWorkers", numberOfWorkers);
+        variables.put("city", city);
+        variables.put("message", message);
+
+        send(appProperties.getMail().getAdminRecipient(),
+                "New manpower enquiry %s from %s".formatted(reference, companyName),
+                "email/admin-enquiry", variables);
+    }
+
+    @Async
+    public void sendAdminContactNotification(String name, String email, String phone,
+                                             String subject, String message) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("name", name);
+        variables.put("email", email);
+        variables.put("phone", phone);
+        variables.put("subject", subject);
+        variables.put("message", message);
+
+        send(appProperties.getMail().getAdminRecipient(),
+                "Website contact message from " + name,
+                "email/admin-contact", variables);
     }
 
     // ------------------------------------------------------------------

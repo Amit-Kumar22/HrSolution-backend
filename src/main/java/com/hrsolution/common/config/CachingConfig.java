@@ -21,4 +21,16 @@ public class CachingConfig {
 
     /** Company profile - read on nearly every page, changed a few times a year. */
     public static final String COMPANY_SETTINGS = "companySettings";
+
+    /**
+     * Published marketing content: services, industries and testimonials.
+     *
+     * <p>Worth caching because the public site hits these on every page load
+     * from anonymous traffic, and they change when someone edits copy - which
+     * is rarely, and always through an endpoint that evicts.
+     */
+    public static final String PUBLIC_CONTENT = "publicContent";
+
+    /** Manpower category master - referenced everywhere, edited a few times a year. */
+    public static final String MANPOWER_CATEGORIES = "manpowerCategories";
 }

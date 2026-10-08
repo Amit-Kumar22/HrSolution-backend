@@ -25,6 +25,46 @@ public class AppProperties {
     private final Cors cors = new Cors();
     private final OpenApi openapi = new OpenApi();
     private final Mail mail = new Mail();
+    private final Storage storage = new Storage();
+    private final Site site = new Site();
+
+    @Getter
+    @Setter
+    public static class Storage {
+
+        /** Where {@code LocalStorageService} writes. Gitignored. */
+        private String localPath = "./uploads";
+
+        /**
+         * Per-file cap, enforced before anything is written.
+         *
+         * <p>Separate from {@code spring.servlet.multipart.max-file-size}, which
+         * Tomcat applies to the whole request. This one is per logical upload
+         * and can be tightened for a specific kind of file.
+         */
+        private long maxFileSizeBytes = 10L * 1024 * 1024;
+
+        /** Tighter cap for images, which never legitimately need 10 MB. */
+        private long maxImageSizeBytes = 2L * 1024 * 1024;
+    }
+
+    @Getter
+    @Setter
+    public static class Site {
+
+        /**
+         * Public base URL of the marketing site. Used to build absolute URLs in
+         * {@code sitemap.xml}, which search engines require.
+         */
+        private String baseUrl = "http://localhost:8080";
+
+        /**
+         * Whether to let search engines index the site. False emits a
+         * {@code Disallow: /} robots.txt - the correct setting for a staging
+         * host, where an indexed copy competes with production for rankings.
+         */
+        private boolean seoIndexingEnabled = false;
+    }
 
     @Getter
     @Setter

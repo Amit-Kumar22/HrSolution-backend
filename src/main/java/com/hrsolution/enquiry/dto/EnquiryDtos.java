@@ -29,7 +29,7 @@ public final class EnquiryDtos {
      * rejecting a lead because the visitor had not decided a start date costs
      * real business. The gaps get filled in on the follow-up call.
      */
-    @Schema(description = "Public manpower requirement enquiry")
+    @Schema(name = "EnquirySubmitRequest", description = "Public manpower requirement enquiry")
     public record SubmitRequest(
 
             @NotBlank(message = "Company name is required")
@@ -99,7 +99,7 @@ public final class EnquiryDtos {
     }
 
     /** What the public form gets back. Deliberately minimal. */
-    @Schema(description = "Acknowledgement of a submitted enquiry")
+    @Schema(name = "EnquirySubmitResponse", description = "Acknowledgement of a submitted enquiry")
     public record SubmitResponse(
             @Schema(description = "Reference the enquirer can quote when following up",
                     example = "ENQ-000042")
@@ -107,7 +107,7 @@ public final class EnquiryDtos {
             String message) {
     }
 
-    @Schema(description = "An enquiry, for staff")
+    @Schema(name = "Enquiry", description = "An enquiry, for staff")
     public record Response(
             Long id,
             @Schema(example = "ENQ-000042") String reference,
@@ -132,7 +132,7 @@ public final class EnquiryDtos {
             Instant updatedAt) {
     }
 
-    @Schema(description = "Move an enquiry along the pipeline")
+    @Schema(name = "EnquiryStatusRequest", description = "Move an enquiry along the pipeline")
     public record UpdateStatusRequest(
 
             @NotNull(message = "Status is required")
@@ -144,7 +144,7 @@ public final class EnquiryDtos {
             String note) {
     }
 
-    @Schema(description = "Assign an enquiry to a staff member")
+    @Schema(name = "EnquiryAssignRequest", description = "Assign an enquiry to a staff member")
     public record AssignRequest(
 
             @Schema(description = "User id to assign to, or null to unassign")

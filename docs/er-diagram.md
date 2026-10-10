@@ -10,6 +10,10 @@ tagged with the phase that creates it — so this doubles as the schema roadmap.
   `refresh_tokens`, `verification_tokens`, `password_reset_tokens`, `audit_logs`
 - **V3** — `manpower_categories`, `service_offerings`, `industries`,
   `testimonials`, `enquiries`, `contact_messages`, `documents`
+- **V4** — `clients`, `client_users`, `client_sites`, `client_contracts`,
+  `rate_cards`, `skills`, `category_skills`
+- **V5** — no new tables; grants `CLIENT_READ` to the `CLIENT` role, which the
+  V2 seed had omitted
 
 Note that `manpower_categories` moved forward from Phase 4 to Phase 3: the public
 enquiry form needs a category dropdown, and a free-text field would produce
@@ -177,9 +181,10 @@ erDiagram
     }
     client_users {
         bigint client_id FK
-        bigint user_id FK "a CLIENT-role login"
-        boolean primary_contact
+        bigint user_id FK,UK "UNIQUE - one login, one client"
+        boolean primary_contact "at most one per client"
         varchar designation
+        boolean active
     }
     client_sites {
         bigint client_id FK
@@ -202,12 +207,13 @@ erDiagram
     rate_cards {
         bigint client_id FK
         bigint category_id FK
-        bigint site_id FK "null = all sites"
-        decimal monthly_wage
-        decimal billing_rate
+        bigint site_id FK "null = all sites; a named site wins"
+        decimal monthly_wage "what the worker is paid"
+        decimal billing_rate "what the client is billed"
         decimal ot_rate_per_hour
         int shift_hours
-        date effective_from
+        date effective_from "dated history - never edited once used"
+        date effective_to "null = current; closed the day before a successor"
     }
     manpower_categories {
         varchar name UK "Security Guard, Helper, Electrician, ..."
@@ -609,7 +615,7 @@ the error the user saw can all be joined after the fact.
 | 1 | `company_settings` |
 | 2 | `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `refresh_tokens`, `verification_tokens`, `password_reset_tokens`, `audit_logs` |
 | 3 | `enquiries`, `contact_messages`, `testimonials`, `documents`, `service_offerings`, `industries`, `manpower_categories` (moved up from Phase 4) |
-| 4 | `clients`, `client_users`, `client_sites`, `client_contracts`, `rate_cards`, `skills`, `category_skills` |
+| 4 | `clients`, `client_users`, `client_sites`, `client_contracts`, `rate_cards`, `skills`, `category_skills` — **done** |
 | 5 | `jobs`, `candidates`, `applications`, `application_status_history`, `interviews` |
 | 6 | `requisitions`, `requisition_status_history`, `workers`, `worker_bank_details`, `worker_documents`, `salary_structures`, `deployments` |
 | 7 | `attendance_sheets`, `attendance_entries`, `leave_requests`, `holidays` |

@@ -51,6 +51,7 @@ public class UserAdminService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final com.hrsolution.client.repository.ClientUserRepository clientUserRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
@@ -236,11 +237,19 @@ public class UserAdminService {
     // ==================================================================
 
     /**
-     * Approves a self-registered client company.
+     * Activates a client login without creating a client company record.
      *
-     * <p>Phase 2 activates the login. Phase 4 extends this to also create the
-     * {@code clients} row from {@code pendingCompanyName} and link the user to
-     * it, which is why the company name is retained on the user.
+     * <p><strong>Prefer {@code POST /clients/approve-registration/{userId}}.</strong>
+     * Since Phase 4 that endpoint does the whole job in one transaction: it
+     * creates the {@code clients} row, links this login to it as primary
+     * contact, and activates the account.
+     *
+     * <p>This method activates only the login, which leaves the user able to
+     * sign in and see nothing - every client-scoped screen resolves through
+     * {@code client_users}, and there is no row there yet. It is kept for the
+     * rare case of re-activating a login whose client already exists, and
+     * refuses to run when no such link is present rather than producing that
+     * broken half-state.
      */
     @Transactional
     public UserResponse approveClient(Long userId, AuthenticatedUser actor,
@@ -255,14 +264,23 @@ public class UserAdminService {
                     "Only a PENDING_APPROVAL registration can be approved; this one is "
                             + user.getStatus() + ".");
         }
+        // The guard that stops this creating a sign-in-but-see-nothing account.
+        if (!clientUserRepository.existsByUserId(userId)) {
+            throw new BusinessRuleException(
+                    "This login is not linked to a client company, so activating it alone would "
+                            + "let the user sign in and see nothing. Use "
+                            + "POST /api/v1/clients/approve-registration/" + userId
+                            + " instead - it creates the client record and links this login in "
+                            + "one step.");
+        }
 
         user.setStatus(UserStatus.ACTIVE);
         // An admin approving the registration vouches for the address.
         user.markEmailVerified();
 
         auditService.recordSecurityEvent(AuditAction.CLIENT_APPROVED, actor.id(), actor.email(),
-                true, "Approved client registration for '%s' (%s)"
-                        .formatted(user.getPendingCompanyName(), user.getEmail()), context);
+                true, "Activated client login %s (client record already linked)"
+                        .formatted(user.getEmail()), context);
 
         return userMapper.toUserResponse(user);
     }

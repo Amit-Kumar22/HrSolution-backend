@@ -24,5 +24,8 @@ public interface ManpowerCategoryMapper {
     @Mapping(target = "updatedBy", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "active", ignore = true)
+    // Managed by PUT /manpower-categories/{id}/skills, so editing a category's
+    // name cannot silently clear the skills it requires.
+    @Mapping(target = "skills", ignore = true)
     void applyRequest(ManpowerCategoryDtos.Request request, @MappingTarget ManpowerCategory entity);
 }

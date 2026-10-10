@@ -128,6 +128,27 @@ class PermissionCatalogueIT extends AbstractIntegrationTest {
     }
 
     @Test
+    @DisplayName("CLIENT can read its own client record, sites, contracts and rate cards")
+    void clientCanReadItsOwnRecord() {
+        Set<String> held = permissionNames(role(RoleName.CLIENT));
+
+        // Missing from the original V2 seed and added by V5. Without it a client
+        // user could see their deployed workers and invoices but got a 403 on
+        // their own company record - the client portal simply did not work.
+        //
+        // Safe to hold because CLIENT_READ grants the capability, not the scope:
+        // ClientAccessGuard resolves the caller's own client from client_users
+        // and answers 404 for any other id.
+        assertThat(held)
+                .as("a client user must be able to read its own company record")
+                .contains(Permissions.CLIENT_READ);
+
+        // But not to create or edit clients, nor to approve registrations.
+        assertThat(held).doesNotContain(
+                Permissions.CLIENT_WRITE, Permissions.CLIENT_APPROVE);
+    }
+
+    @Test
     @DisplayName("WORKER and CANDIDATE hold only self-service permissions")
     void selfServiceRolesAreSelfServiceOnly() {
         // A worker reading another worker's payslip would be a data breach, so

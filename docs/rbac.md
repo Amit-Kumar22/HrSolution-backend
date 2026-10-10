@@ -51,7 +51,7 @@ whenever a 15-minute token happens to expire.
 | `USER_READ` | ✅ | ✅ | · | · | · | · | · | · | · |
 | **CLIENT** | | | | | | | | | |
 | `CLIENT_APPROVE` | ✅ | ✅ | · | · | · | · | · | · | · |
-| `CLIENT_READ` | ✅ | ✅ | ✅ | ✅ | · | ✅ | · | · | · |
+| `CLIENT_READ` | ✅ | ✅ | ✅ | ✅ | · | ✅ | ✅ | · | · |
 | `CLIENT_WRITE` | ✅ | ✅ | · | ✅ | · | · | · | · | · |
 | **REQUISITION** | | | | | | | | | |
 | `REQUISITION_APPROVE` | ✅ | ✅ | · | ✅ | · | · | · | · | · |
@@ -103,7 +103,7 @@ whenever a 15-minute token happens to expire.
 | `SELF_PAYSLIP_READ` | ✅ | · | · | · | · | · | · | ✅ | · |
 | `SELF_PROFILE_MANAGE` | ✅ | · | · | · | ✅ | · | ✅ | ✅ | ✅ |
 
-Counts: **SA** 41, **AD** 34, **HR** 11, **OM** 14, **SS** 5, **AC** 12, **CL** 8, **WK** 4, **CD** 3
+Counts: **SA** 41, **AD** 34, **HR** 11, **OM** 14, **SS** 5, **AC** 12, **CL** 9, **WK** 4, **CD** 3
 
 ## Deliberate separations
 
@@ -142,6 +142,15 @@ configuration, the GST rate and the invoice number series, so it stays with
 SUPER_ADMIN alone. Reading the manpower category list needs no permission at
 all beyond being signed in — requisition, deployment and payroll screens all
 depend on it.
+
+**`CLIENT` holds `CLIENT_READ`, added by migration V5.** The original V2 seed
+omitted it, so a client user could see their deployed workers and invoices but
+got a 403 on their own company record — the portal simply did not work. Found by
+`ClientApiIT` in Phase 4 and fixed forward. It is safe to hold because
+`CLIENT_READ` grants the *capability*, not the *scope*: every endpoint it guards
+passes through `ClientAccessGuard`, which resolves the caller's own client from
+`client_users` and answers **404** (not 403) for any other id — a 403 would
+confirm the record exists and turn sequential ids into a customer list.
 
 ## Changing the matrix
 

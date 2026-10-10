@@ -13,7 +13,7 @@ public final class ManpowerCategoryDtos {
     private ManpowerCategoryDtos() {
     }
 
-    @Schema(description = "A kind of worker the company supplies")
+    @Schema(name = "ManpowerCategory", description = "A kind of worker the company supplies")
     public record Response(
             Long id,
             @Schema(example = "SECURITY_GUARD") String code,
@@ -27,7 +27,7 @@ public final class ManpowerCategoryDtos {
     }
 
     /** The trimmed shape the public enquiry form's dropdown needs. */
-    @Schema(description = "A category, as offered on the public enquiry form")
+    @Schema(name = "PublicManpowerCategory", description = "A category, as offered on the public enquiry form")
     public record PublicResponse(
             Long id,
             @Schema(example = "SECURITY_GUARD") String code,
@@ -36,7 +36,7 @@ public final class ManpowerCategoryDtos {
             String description) {
     }
 
-    @Schema(description = "Create or replace a manpower category")
+    @Schema(name = "ManpowerCategoryRequest", description = "Create or replace a manpower category")
     public record Request(
 
             // Upper snake case enforced because this code is the stable
@@ -44,8 +44,10 @@ public final class ManpowerCategoryDtos {
             // or mixed case would make those files fragile.
             @NotBlank(message = "Code is required")
             @Size(max = 40)
-            @Pattern(regexp = "^[A-Z][A-Z0-9_]{1,39}$",
-                    message = "must be upper snake case, e.g. SECURITY_GUARD")
+            // Case-insensitive on input; ManpowerCategoryService upper-cases it.
+            @Pattern(regexp = "^[A-Za-z][A-Za-z0-9_]{1,39}$",
+                    message = "must be letters, digits and underscores starting with a letter, "
+                            + "e.g. SECURITY_GUARD (stored upper case)")
             @Schema(requiredMode = Schema.RequiredMode.REQUIRED, example = "SECURITY_GUARD")
             String code,
 

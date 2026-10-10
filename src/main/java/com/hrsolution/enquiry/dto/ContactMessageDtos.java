@@ -15,7 +15,7 @@ public final class ContactMessageDtos {
     private ContactMessageDtos() {
     }
 
-    @Schema(description = "Public Contact Us submission")
+    @Schema(name = "ContactMessageSubmitRequest", description = "Public Contact Us submission")
     public record SubmitRequest(
 
             @NotBlank(message = "Name is required")
@@ -51,7 +51,7 @@ public final class ContactMessageDtos {
             Long formRenderedAt) {
     }
 
-    @Schema(description = "A contact message, for staff")
+    @Schema(name = "ContactMessage", description = "A contact message, for staff")
     public record Response(
             Long id,
             String name,

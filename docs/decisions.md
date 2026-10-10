@@ -646,3 +646,178 @@ It is a distinct record rather than a filtered projection of
 accidentally publish it. Combined with `unmappedTargetPolicy=ERROR`, the
 compiler checks that every field of the public record *is* mapped, while
 anything the record omits is structurally unpublishable.
+
+---
+
+## 31. Phase 4: rate cards are dated history, not settings
+
+A rate change **inserts a successor and closes the predecessor the day before**
+rather than updating in place:
+
+```
+2026-04-01 → 2026-09-30   wage 18,000   (closed)
+2026-10-01 → (current)    wage 19,500
+```
+
+Editing in place would silently rewrite history in three places that matter:
+
+- re-running March's payroll must reproduce March's figures;
+- crediting an old invoice must use the rate that was billed;
+- a wage dispute is settled by what the rate card said at the time.
+
+Hence `RateCardService.correct` and `delete` both refuse once
+`effectiveFrom` has passed — the rate may already have produced a wage or an
+invoice. The route after that is supersession.
+
+`closeBefore()` sets `effectiveTo` to the day *before* the successor starts. An
+inclusive end equal to the successor's start would leave both rows claiming the
+same day, and the applicable wage would depend on row order.
+
+### Resolution order is the contract
+
+`findApplicableOn` orders by **specificity, then recency**:
+
+1. a row naming the site beats a client-wide row for the same category —
+   minimum wages differ by state, and a client's plants may sit in different
+   ones;
+2. among equally specific rows, the latest `effectiveFrom` on or before the
+   date wins.
+
+It returns a `List`, not an `Optional`, so the service can detect that two rows
+of *equal* specificity both covered the date and report `ambiguous: true`. A
+site-specific row plus a client-wide fallback is **not** ambiguous — that is the
+override working. Collapsing this in the query would hide a misconfiguration
+that silently changes someone's wage.
+
+---
+
+## 32. GST treatment is derived, and UNKNOWN is a real answer
+
+`GstTreatment.resolve(companyStateCode, clientStateCode)` returns
+`INTRA_STATE` (CGST+SGST), `INTER_STATE` (IGST), or `UNKNOWN` when either code
+is missing.
+
+`UNKNOWN` exists rather than defaulting to one treatment because getting this
+wrong does not merely mis-state a total — it files tax under the wrong heads,
+which is a correction with the GST department rather than a corrected invoice.
+Clients are routinely onboarded before their paperwork arrives, so the missing
+case is common and must not be guessed. Phase 9 will refuse to invoice on
+`UNKNOWN`; Phase 4 logs a warning so somebody notices early.
+
+Comparison is exact: `"7"` and `"07"` are different codes. GST state codes are
+two digits, so treating them as equal would hide a data-entry error.
+
+A **site's** state code is separately significant and is not a duplicate of the
+client's billing state: it governs the minimum wage, the professional tax slab
+and the contract labour licence for everyone working there. A Pune-billed client
+can run a plant in Gujarat.
+
+---
+
+## 33. Contract terms freeze on activation
+
+`DRAFT → ACTIVE → TERMINATED/EXPIRED`, with activation as its own endpoint
+rather than a status field on the update body.
+
+- **Terms are editable only while `DRAFT`.** Once active, the contract may have
+  been billed against, and changing the service charge would make an issued
+  invoice unreproducible.
+- **Two live contracts for one client may not overlap.** Two active contracts
+  covering the same day means two different service charges could apply, and
+  whichever the query returned first would win — a silent revenue error. The
+  check runs at *activation*, not creation, so a successor can be drafted
+  alongside a running contract.
+- Note that an **open-ended contract blocks every later one** until it is given
+  an end date or terminated. Correct, and worth knowing before raising one.
+- Terminating sets `endDate` to the termination date, so billing afterwards
+  finds no contract in force rather than quietly reusing the old terms.
+
+`ServiceChargeType` is stored explicitly rather than inferred from the value's
+magnitude. `8` is a plausible percentage *and* a plausible per-worker fee, and
+on a 5,00,000 wage bill across 40 workers the two readings differ by 100× —
+40,000 against 320. For the same reason the percentage ceiling is checked in the
+service, not by an annotation: `150` is nonsense as a percentage and ordinary as
+rupees per worker.
+
+---
+
+## 34. Ownership checks are a separate layer from permissions
+
+Phase 4 is the first phase where a caller can be an outsider with legitimate
+read access, so the distinction becomes load-bearing:
+
+| Layer | Answers | Where |
+|---|---|---|
+| Authentication | is there a valid token? | `SecurityConfig` |
+| **Permission** | may this *kind* of user do this *kind* of thing? | `@PreAuthorize` |
+| **Ownership** | *whose* records may they do it to? | `ClientAccessGuard` |
+
+A `CLIENT`-role user legitimately holds `CLIENT_READ` and `INVOICE_READ`. The
+annotation cannot express *whose* invoices, and client ids are sequential
+integers — so without the third layer any client user could read a competitor's
+rates, sites and contracts by changing a number in the URL.
+
+Two rules follow:
+
+- **A client id from the caller is never trusted.** It is either checked against
+  the caller's own (`requireAccessTo`) or ignored entirely in favour of the
+  resolved one (`resolveAccessibleClientId`). The list endpoint uses the latter,
+  so `?clientId=<rival>` is overridden rather than honoured.
+- **Denial is 404, not 403.** A 403 confirms the record exists, which turns
+  sequential ids into a way to enumerate the customer list.
+
+`client_users.user_id` is unique: one login belongs to exactly one client.
+Otherwise a mis-assigned account could read two companies' data, and every
+ownership check would have to cope with a set of ids rather than one.
+
+---
+
+## 35. Two more Phase 4 bugs, and what caught them
+
+**`CLIENT` was never granted `CLIENT_READ`** (fixed in V5, §above). The role had
+`REQUISITION_READ`, `DEPLOYMENT_READ`, `INVOICE_READ` and the rest, but not the
+permission for its own company record — so the client portal returned 403 on its
+own home screen. Caught by `ClientApiIT.clientUserCannotReachAnotherClient`,
+which logs in as a real client user instead of asserting against a mock.
+
+**`approveRegistration` created the client and the link but never activated the
+login** — despite the Javadoc saying it did. The account stayed
+`PENDING_APPROVAL`, so every sign-in returned 403 and the whole approval was
+pointless. Caught by the same test file calling `/auth/login` afterwards rather
+than trusting the 201.
+
+Both were only findable by a test that exercises the *user's* journey end to
+end. A test asserting "approval returns 201" would have passed on both.
+
+Fixed forward in a new migration rather than by editing V2: Flyway validates
+checksums, so an edited migration stops every environment that has already
+applied it from starting.
+
+---
+
+## 36. Validation patterns must agree with what the service does
+
+`ClientSiteDtos.Request.siteCode` carried `^[A-Z0-9][A-Z0-9_\-]{1,39}$` while
+`ClientSiteService` did `.toUpperCase()` on the value. The pattern rejected
+`pune-ho` before the service ever saw it, making the normalisation unreachable
+dead code and the error message a pointless hurdle.
+
+Relaxed to accept any case, since normalising is evidently the intent. The same
+mismatch existed on `ManpowerCategoryDtos.Request.code` and was fixed with it.
+
+General rule: if a service normalises a field, the validation must accept the
+un-normalised form. Otherwise one of the two is doing nothing, and it is not
+obvious which.
+
+---
+
+## 37. Derived codes vs. stored series
+
+`Client.clientCode()` returns `CLI-00042`, derived from the id rather than
+stored. Likewise `EnquiryReference.of()`. They carry no information the id does
+not, can never drift out of step, and need no second write or counter table.
+
+**Invoice numbers are deliberately different.** `INV/2026-27/0001` is a legally
+mandated series that must be gapless, never reused, and scoped to a financial
+year — none of which an id provides. Phase 9 gives them a real `number_series`
+table with its own row-level locking.

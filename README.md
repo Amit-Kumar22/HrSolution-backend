@@ -5,7 +5,7 @@ and site management, manpower requisitions, recruitment, worker records,
 deployment, attendance, payroll with statutory deductions (PF / ESI / PT), GST
 invoicing and compliance tracking.
 
-**Status: Phase 3 (Public website APIs & enquiries) complete.** See [Delivery phases](#delivery-phases).
+**Status: Phase 4 (Clients, sites, contracts, rate cards) complete.** See [Delivery phases](#delivery-phases).
 
 ---
 
@@ -165,7 +165,8 @@ src/main/java/com/hrsolution/
   settings/                 company profile (the Phase 1 worked example)
     controller/ service/ repository/ entity/ dto/ mapper/
   auth/ user/ audit/        Phase 2: authentication, RBAC, security audit
-  catalog/                  Phase 3: manpower categories and skill levels
+  catalog/                  Phase 3-4: manpower categories, skill levels, skills master
+  client/                   Phase 4: clients, sites, contracts, rate cards, access guard
   content/                  Phase 3: services, industries, testimonials + the public site
   enquiry/                  Phase 3: enquiry pipeline and the contact inbox
   document/                 Phase 3: upload metadata, authenticated downloads
@@ -174,7 +175,8 @@ src/main/java/com/hrsolution/
 src/main/resources/
   application.properties            shared config
   application-{local,dev,prod}.properties
-  db/migration/                     Flyway — V1 baseline, V2 auth/RBAC, V3 public site
+  db/migration/                     Flyway — V1 baseline, V2 auth/RBAC, V3 public site,
+                                    V4 clients/contracts/rate cards, V5 CLIENT_READ grant
   templates/email/                  Thymeleaf email templates
 src/test/java/com/hrsolution/
   support/                  AbstractIntegrationTest, TestcontainersConfiguration
@@ -463,6 +465,86 @@ implementation without touching a caller.
 
 ---
 
+## Clients, contracts and rate cards
+
+The commercial core. Sites, contracts, rate cards, requisitions, deployments and
+invoices all hang off a client.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/clients` | List; a client user sees only their own |
+| `GET /api/v1/clients/me` | **The client portal's home.** Takes no id, so it cannot be pointed elsewhere |
+| `GET /api/v1/clients/{id}/detail` | Client + users + sites + contracts in one call |
+| `POST /api/v1/clients/approve-registration/{userId}` | Approve a self-registration: creates the client, links the login, activates the account |
+| `POST /api/v1/clients/{id}/sites` | Add a site |
+| `POST /api/v1/clients/{id}/contracts` | Draft a contract |
+| `PATCH /api/v1/contracts/{id}/activate` | Make the terms binding |
+| `GET /api/v1/clients/{id}/contracts/in-force?onDate=` | The contract Phase 9 will bill against |
+| `POST /api/v1/clients/{id}/rate-cards` | Create a rate, superseding the current one |
+| `GET /api/v1/clients/{id}/rate-cards/resolve?categoryId=&siteId=&onDate=` | The rate payroll and billing will use |
+
+### Three things carry weight beyond this phase
+
+**`clients.billingStateCode` decides GST treatment.** Equal to the company's
+code means CGST+SGST; different means IGST; missing means `UNKNOWN`, and Phase 9
+will refuse to invoice rather than guess. Getting it wrong files tax under the
+wrong heads — a correction with the GST department, not a corrected invoice.
+
+**A site's state code is not the client's.** It governs the minimum wage, the
+professional tax slab and the contract labour licence for everyone working
+there. A Pune-billed client can run a plant in Gujarat, and the plant's state is
+what applies.
+
+**Rate cards are dated history, not settings.** Creating one closes the previous
+row the day before rather than overwriting it:
+
+```
+2026-04-01 → 2026-09-30   wage 18,000   (closed)
+2026-10-01 → (current)    wage 19,500
+```
+
+So re-running March's payroll reproduces March's figures, and crediting an old
+invoice uses the rate that was billed. A rate that has taken effect cannot be
+edited or deleted — supersede it instead. Resolution picks by **specificity
+then recency**: a site-specific rate beats a client-wide one, then the latest
+`effectiveFrom` on or before the date wins.
+
+### Contract lifecycle
+
+`DRAFT → ACTIVE → TERMINATED/EXPIRED`. Activation is a separate endpoint
+because it is what makes the terms binding and freezes them against edits —
+once active, the contract may have been billed against.
+
+Two live contracts for one client may not overlap: two active contracts covering
+the same day would make the service charge on an invoice ambiguous. Note an
+**open-ended contract blocks every later one** until it is given an end date or
+terminated.
+
+`serviceChargeType` is stored explicitly, not inferred. On a ₹5,00,000 wage bill
+across 40 workers, a value of `8` means ₹40,000 as a percentage and ₹320 as a
+per-worker fee.
+
+### Cross-client isolation
+
+Three distinct layers, and the third is the one that matters here:
+
+| Layer | Answers | Where |
+|---|---|---|
+| Authentication | is there a valid token? | `SecurityConfig` |
+| Permission | may this *kind* of user do this? | `@PreAuthorize` |
+| **Ownership** | *whose* records? | `ClientAccessGuard` |
+
+A client user legitimately holds `CLIENT_READ`. The annotation cannot express
+*whose* client, and ids are sequential integers — so a client id from the caller
+is **never trusted**. It is either checked against the caller's own, or ignored
+in favour of the resolved one. `GET /clients?clientId=<rival>` is overridden,
+not honoured.
+
+Denial is **404, not 403**: a 403 confirms the record exists, which turns
+sequential ids into a customer list.
+
+---
+
 ## Database backups
 
 MySQL is the single source of truth — uploaded documents aside, everything is in
@@ -507,8 +589,8 @@ Points worth being deliberate about:
 | 1 | Foundation — build, profiles, `common` module, Flyway, Docker, Swagger | **Done** |
 | 2 | Auth & RBAC — users, roles, permissions, JWT access + refresh rotation with reuse detection, lockout, rate limiting, email verification, password reset, sessions, security audit | **Done** |
 | 3 | Public website APIs & enquiries — company profile, services, industries, testimonials, enquiry/contact forms, file storage, SEO | **Done** |
-| 4 | Clients, sites, contracts, rate cards, client approval | Next |
-| 5 | Recruitment — jobs, candidates, applications pipeline, interviews | |
+| 4 | Clients, sites, contracts, rate cards, skills master, client approval | **Done** |
+| 5 | Recruitment — jobs, candidates, applications pipeline, interviews | Next |
 | 6 | Workers, documents (encrypted fields), deployment, requisition workflow | |
 | 7 | Attendance & leave — supervisor entry, Excel upload, client approval, locking | |
 | 8 | Payroll — configurable statutory engine, payslip PDF, bank/PF/ESI exports | |

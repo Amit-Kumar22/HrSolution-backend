@@ -237,6 +237,26 @@ erDiagram
 
 ## 4. Requisitions and recruitment — Phases 5 and 6
 
+> **Phase 5 is built.** `jobs`, `candidates`, `applications`,
+> `application_status_history` and `interviews` exist as of migration **V6**.
+> `requisitions` and `requisition_status_history` are **Phase 6** — they belong
+> to the client-demand side alongside deployment, and `jobs.requisition_id` is
+> added by that migration rather than V6 (a nullable FK to a table that does not
+> exist yet is not something Flyway can express).
+>
+> Where the delivered schema differs from the sketch below:
+>
+> | Planned | Built | Why |
+> |---|---|---|
+> | `jobs.published` boolean | `jobs.status` enum `DRAFT\|OPEN\|ON_HOLD\|CLOSED\|FILLED` | A boolean cannot distinguish "filled it" from "client pulled the requirement", which is exactly what a recruitment report is asked for. See decisions §39. |
+> | — | `jobs.slug` (unique) | The public careers URL. |
+> | — | `jobs.client_id`, `jobs.site_id` | Which client the role is for. **Never exposed publicly** — see decisions §39. |
+> | — | `jobs.expires_on` | Evaluated on read, not swept by a job. See decisions §44. |
+> | `candidates.resume_path` | `candidates.resume_document_id` **and** `applications.resume_document_id` | The person's current CV, and the CV actually submitted with each application. See decisions §40. |
+> | — | `candidates.spam_suspected`, `spam_reason` | The public apply form has the same honeypot as the enquiry form. |
+> | — | `interviews.round_number` (unique per application) | A rescheduled interview stops being "the second row by date". |
+
+
 ```mermaid
 erDiagram
     requisitions {

@@ -821,3 +821,206 @@ not, can never drift out of step, and need no second write or counter table.
 mandated series that must be gapless, never reused, and scoped to a financial
 year — none of which an id provides. Phase 9 gives them a real `number_series`
 table with its own row-level locking.
+
+---
+
+## 38. Phase 5: the application funnel is a state machine on the enum
+
+`ApplicationStatus` carries its own transition table and
+`Application.moveTo()` is the only way the status changes. Both choices were
+forced by the same observation: **four separate callers drive this funnel** —
+the anonymous apply form, the candidate portal, the recruiter's board, and the
+interview result handler. A rule enforced in `ApplicationService` would be a
+rule the other three could bypass, and a trail written by the service would be
+a trail some path forgot to write.
+
+So `moveTo` validates *and* appends to `application_status_history` in one
+call. There is no code path that records a move without checking it, or checks
+one without recording it.
+
+Two refusals are not pedantry:
+
+- **`APPLIED → JOINED`** would put someone on a client site with no screening
+  and no interview on record. Phase 6 converts a `JOINED` application into a
+  worker, and Phase 10 has to show the principal employer that the person was
+  actually vetted.
+- **Anything out of a terminal state** would let a rejection be quietly
+  reversed with no trace. Re-engaging a rejected candidate is a *new*
+  application against the job, which stays visible in their history.
+
+`ApplicationStatusTest` tests this exhaustively with `@EnumSource` rather than
+by example, because a gap here is a gap in all four callers at once.
+
+---
+
+## 39. Phase 5: two response records per resource, not one with conditional mapping
+
+`JobDtos` has `Response` and `PublicResponse`. `CandidateDtos` has `Response`
+and `SelfResponse`. `ApplicationDtos` likewise. In every case the second record
+is **structurally** missing fields rather than having them ignored by a mapping
+annotation.
+
+The reason is specific to this industry. A job records which client it is for,
+and clients routinely require that a vacancy **not** be attributable to them —
+naming them tells their competitors about a plant expansion and tells their own
+workforce about churn. If the public shape were the staff shape with
+`@Mapping(ignore = true)` on two fields, that guarantee would be one careless
+edit away from gone, and every endpoint would still return 200.
+
+The same logic covers the candidate portal: a candidate is entitled to know
+where they stand, not to read the interview panel's write-up or learn which
+recruiter owns them. `RecruitmentApiIT.publicJobNeverNamesTheClient()` asserts
+the client's name appears nowhere in the public payload under any key.
+
+---
+
+## 40. Phase 5: resumes are stored twice, deliberately
+
+`candidates.resume_document_id` is the person's current CV.
+`applications.resume_document_id` is the CV actually submitted with that
+application.
+
+Two reasons, one practical and one about trust:
+
+- A recruiter reopening a two-year-old application sees what they were
+  *actually sent*, not whatever the candidate has uploaded since.
+- An anonymous submission quoting a registered candidate's email can attach a
+  CV to its own application without touching that person's profile.
+
+That second point is the whole of §41.
+
+---
+
+## 41. Phase 5: email is the candidate identity key, and that needs a tamper rule
+
+`candidates.email` is unique. Someone who applies to four jobs over two years
+must be **one** candidate with four applications, not four candidates —
+otherwise the recruiter cannot see that this person was interviewed and
+rejected last year, which is the single most useful thing the system can tell
+them.
+
+The consequence is that an anonymous form can arrive quoting an address that
+already belongs to a registered candidate. `CandidateService.resolveForApplication`
+reuses the row — but **never overwrites identity fields on a record that
+belongs to a user**. For a guest-owned row it fills blanks only.
+
+Without that second half, anyone who knew an address could rewrite that
+person's name, phone number and CV by submitting a public form. With it, the
+worst an attacker achieves is adding an application to someone else's profile,
+which is visible to staff and carries no information back to them.
+
+`anonymousApplicationCannotTamperWithARegisteredProfile()` is the test.
+
+---
+
+## 42. Phase 5: three bugs the end-to-end walk caught
+
+Phase 4 established that the bugs which matter only appear when a test walks
+the *user's* journey rather than checking endpoints one at a time. Phase 5
+produced three more, and all three returned a success status individually.
+
+### `CANDIDATE` held `JOB_READ`, which guards the staff job endpoints
+
+V2 granted it on the reasoning that "job adverts are public anyway". True of
+`GET /api/v1/public/jobs`, which is anonymous and needs no permission at all.
+Not true of `GET /api/v1/jobs`, which `JOB_READ` actually guards and which
+returns:
+
+- `clientName` and `clientId` — defeating §39 entirely, through a different door
+- `DRAFT` and `CLOSED` adverts, i.e. roles not yet announced or already pulled
+- `applicationCount` and `openingsCommitted` — the client's commercial
+  information, not the applicant's
+
+Fixed forward in **V7**, never by editing V2: that migration has run
+everywhere and changing it breaks Flyway's checksum. Same reasoning as V5.
+Candidates lose nothing — browsing and applying are both anonymous.
+
+### Cancelling an interview could not walk the status back, silently
+
+`InterviewService.cancel` returns the application to `SHORTLISTED` when no
+other interview is booked, otherwise the status keeps asserting a meeting that
+is not going to happen. It did nothing, because `INTERVIEW_SCHEDULED →
+SHORTLISTED` was missing from the transition table and
+`advanceForInterview` returned early on an illegal move **without a word**.
+
+Both halves were wrong. The transition is now allowed — going back to
+shortlisted is not a reversal of a decision, since no decision has been taken —
+and `advanceForInterview` now logs a warning instead of returning silently. It
+must not throw: the cancellation itself has succeeded and must not roll back
+because the status could not follow.
+
+### Adopting a guest candidate inside a read-only transaction
+
+Signing in and opening the portal was supposed to link a guest candidate row to
+the new login, so an application submitted before registering stayed visible.
+`listOwn` called `resolveForSelfService`, which writes.
+
+`listOwn` is `@Transactional(readOnly = true)`. Spring puts Hibernate in
+manual-flush mode there, the nested `@Transactional` joins the same
+transaction, and the link was created, never flushed, and discarded at commit.
+**The portal appeared to work while the database never changed** — the same
+shape as the three Phase 2 rollback bugs (§17).
+
+The fix is not `REQUIRES_NEW`. It is that a read should not write at all:
+`CandidateService.findOwn` resolves by user id and falls back to email, so the
+guest application shows up on a read with no side effect, and the link is
+established by the first write the candidate makes. Reads resolve; writes link.
+
+---
+
+## 43. Phase 5: rate-limit rules became path patterns
+
+`RateLimitFilter` matched literal request paths. `POST /api/v1/public/jobs/{slug}/apply`
+carries a variable, so it would not have matched — leaving the most abusable
+endpoint in the system unlimited: anonymous, world-reachable, and it accepts a
+file upload.
+
+Rules are now `PathPattern`s. A pattern with no variables still matches
+exactly, so the existing auth entries behave as before.
+
+The subtler half is the bucket key. It is keyed on the **pattern**, not the
+concrete path. Keying on the path would give
+`/jobs/guard-pune/apply` and `/jobs/helper-nashik/apply` a bucket each, so an
+attacker could multiply their allowance by the number of open vacancies.
+Neither mistake shows up in a functional test — both still return 201 — so
+`RateLimitFilterTest` asserts them directly.
+
+The production limit is 5 per hour. `application-test.properties` raises
+`public-form` to 1000 alongside the other limits, because every test shares one
+source IP under MockMvc and `RecruitmentApiIT` submits far more than five
+applications.
+
+---
+
+## 44. Phase 5: expiry is evaluated on read, not swept by a job
+
+`jobs.expires_on` is checked by `Job.isOpenOn(date)` every time the advert is
+read, and the public queries put the condition in the SQL. There is no nightly
+job that flips `OPEN` to `CLOSED`.
+
+A missed cron run would otherwise leave a lapsed advert collecting applications
+nobody intends to read. The candidate experience of applying into a void is
+worse than the tidiness of a stored status is worth — and a stored status is a
+second source of truth that can disagree with the date beside it.
+
+Note the consequence for the `OPEN` transition: publishing an advert whose
+closing date has already passed is refused outright, because it would show a
+vacancy nobody can apply to.
+
+---
+
+## 45. Phase 5: `@Lob` on a String fails `ddl-auto=validate`
+
+`Job.description` started as `@Lob String` against a `TEXT` column. Startup
+failed:
+
+```
+Schema validation: wrong column type encountered in column [description] in
+table [jobs]; found [text (Types#LONGVARCHAR)], but expecting [tinytext (Types#CLOB)]
+```
+
+Hibernate 7 maps `@Lob String` to `CLOB`, which it validates against
+`tinytext`. The project's existing convention — `ServiceOffering.description`
+in Phase 3 — is `@Column(columnDefinition = "TEXT")`, which is what this now
+uses. Worth knowing because `@Lob` is the more obvious annotation and gives no
+hint that it will not validate.

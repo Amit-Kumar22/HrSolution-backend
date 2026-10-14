@@ -63,7 +63,7 @@ whenever a 15-minute token happens to expire.
 | `CANDIDATE_READ` | ✅ | ✅ | ✅ | · | · | · | · | · | · |
 | `CANDIDATE_WRITE` | ✅ | ✅ | ✅ | · | · | · | · | · | · |
 | `JOB_MANAGE` | ✅ | ✅ | ✅ | · | · | · | · | · | · |
-| `JOB_READ` | ✅ | ✅ | ✅ | · | · | · | · | · | ✅ |
+| `JOB_READ` | ✅ | ✅ | ✅ | · | · | · | · | · | · |
 | **WORKER** | | | | | | | | | |
 | `WORKER_READ` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | · | · |
 | `WORKER_SENSITIVE_READ` | ✅ | ✅ | · | · | · | ✅ | · | · | · |
@@ -125,10 +125,16 @@ records the hours must not also be the one who signs them off.
 cannot process payroll. The team that decides who works where is not the team
 that decides what they are paid.
 
-**`WORKER` and `CANDIDATE` hold nothing but `SELF_*`** (plus `JOB_READ` for a
-candidate, since job adverts are public anyway). A worker reading another
-worker's payslip would be a data breach, so there is no permission that could
-let them.
+**`WORKER` and `CANDIDATE` hold nothing but `SELF_*`.** A worker reading
+another worker's payslip would be a data breach, so there is no permission that
+could let them.
+
+`CANDIDATE` held `JOB_READ` until **V7** removed it, on the reasoning that job
+adverts are public anyway. They are — but `JOB_READ` guards
+`GET /api/v1/jobs`, the *staff* endpoint, which names the client each vacancy
+was raised for, lists unannounced drafts, and reports how many people have
+applied. The careers page and the apply form are anonymous and need no
+permission at all, so candidates lost nothing. See `docs/decisions.md` §42.
 
 **External roles hold no `WORKER_SENSITIVE_READ`.** Unmasked Aadhaar, PAN and
 bank account numbers are visible only to `SUPER_ADMIN` and `ACCOUNTS`, who need

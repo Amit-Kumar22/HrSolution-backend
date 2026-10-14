@@ -11,9 +11,12 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.server.PathContainer;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
+import org.springframework.web.util.pattern.PathPattern;
+import org.springframework.web.util.pattern.PathPatternParser;
 
 import java.io.IOException;
 import java.util.Map;
@@ -46,21 +49,35 @@ public class RateLimitFilter extends OncePerRequestFilter {
     @Qualifier("handlerExceptionResolver")
     private final HandlerExceptionResolver handlerExceptionResolver;
 
-    /** Request path to the rule that guards it. All are POST-only. */
-    private Map<String, AuthProperties.RateLimit.Rule> rulesByPath() {
+    /**
+     * Path pattern to the rule that guards it. All are POST-only.
+     *
+     * <p>Patterns rather than literal paths because some guarded endpoints
+     * carry a variable - {@code /public/jobs/{slug}/apply} is the first. A
+     * pattern with no variables still matches exactly, so the auth entries
+     * behave as they always did.
+     */
+    private Map<PathPattern, AuthProperties.RateLimit.Rule> rulesByPattern() {
         AuthProperties.RateLimit limits = authProperties.getRateLimit();
         return Map.of(
-                ApiPaths.V1 + "/auth/login", limits.getLogin(),
-                ApiPaths.V1 + "/auth/register/candidate", limits.getRegister(),
-                ApiPaths.V1 + "/auth/register/client", limits.getRegister(),
-                ApiPaths.V1 + "/auth/forgot-password", limits.getForgotPassword(),
-                ApiPaths.V1 + "/auth/resend-verification", limits.getForgotPassword(),
-                ApiPaths.V1 + "/auth/refresh", limits.getRefresh(),
+                pattern(ApiPaths.V1 + "/auth/login"), limits.getLogin(),
+                pattern(ApiPaths.V1 + "/auth/register/candidate"), limits.getRegister(),
+                pattern(ApiPaths.V1 + "/auth/register/client"), limits.getRegister(),
+                pattern(ApiPaths.V1 + "/auth/forgot-password"), limits.getForgotPassword(),
+                pattern(ApiPaths.V1 + "/auth/resend-verification"), limits.getForgotPassword(),
+                pattern(ApiPaths.V1 + "/auth/refresh"), limits.getRefresh(),
                 // The public forms. Anonymous and world-reachable, so these are
                 // the endpoints most in need of a limit.
-                ApiPaths.PUBLIC_V1 + "/enquiries", limits.getPublicForm(),
-                ApiPaths.PUBLIC_V1 + "/contact-messages", limits.getPublicForm());
+                pattern(ApiPaths.PUBLIC_V1 + "/enquiries"), limits.getPublicForm(),
+                pattern(ApiPaths.PUBLIC_V1 + "/contact-messages"), limits.getPublicForm(),
+                pattern(ApiPaths.PUBLIC_V1 + "/jobs/{slug}/apply"), limits.getPublicForm());
     }
+
+    private static PathPattern pattern(String pattern) {
+        return PARSER.parse(pattern);
+    }
+
+    private static final PathPatternParser PARSER = new PathPatternParser();
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -68,18 +85,24 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return true;
         }
         return !HttpMethod.POST.matches(request.getMethod())
-                || !rulesByPath().containsKey(request.getRequestURI());
+                || matchedPattern(request) == null;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String path = request.getRequestURI();
-        AuthProperties.RateLimit.Rule rule = rulesByPath().get(path);
+        PathPattern matched = matchedPattern(request);
+        if (matched == null) {
+            // shouldNotFilter already excluded this, but a null rule would NPE
+            // inside the service, so fail open rather than fail obscurely.
+            filterChain.doFilter(request, response);
+            return;
+        }
+        AuthProperties.RateLimit.Rule rule = rulesByPattern().get(matched);
 
         try {
-            rateLimitService.consumeOrThrow(keyFor(path, request), rule);
+            rateLimitService.consumeOrThrow(keyFor(matched, request), rule);
         } catch (RateLimitExceededException e) {
             handlerExceptionResolver.resolveException(request, response, null, e);
             // Must not continue the chain - the response is already committed.
@@ -89,8 +112,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /** Namespaced per endpoint, so exhausting one does not block the others. */
-    private String keyFor(String path, HttpServletRequest request) {
-        return "ip:" + path + ":" + RequestUtils.clientIp(request);
+    private PathPattern matchedPattern(HttpServletRequest request) {
+        PathContainer path = PathContainer.parsePath(request.getRequestURI());
+        return rulesByPattern().keySet().stream()
+                .filter(candidate -> candidate.matches(path))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Namespaced per endpoint, so exhausting one does not block the others.
+     *
+     * <p>Keyed on the <strong>pattern</strong>, not the concrete path. Keying on
+     * the path would give {@code /jobs/guard-pune/apply} and
+     * {@code /jobs/helper-nashik/apply} a bucket each, so an attacker could
+     * multiply their allowance by the number of open vacancies.
+     */
+    private String keyFor(PathPattern pattern, HttpServletRequest request) {
+        return "ip:" + pattern.getPatternString() + ":" + RequestUtils.clientIp(request);
     }
 }

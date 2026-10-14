@@ -152,14 +152,33 @@ class PermissionCatalogueIT extends AbstractIntegrationTest {
     @DisplayName("WORKER and CANDIDATE hold only self-service permissions")
     void selfServiceRolesAreSelfServiceOnly() {
         // A worker reading another worker's payslip would be a data breach, so
-        // these roles get nothing but SELF_* - plus JOB_READ for a candidate,
-        // since job adverts are public anyway.
+        // these roles get nothing but SELF_*.
         assertThat(permissionNames(role(RoleName.WORKER)))
                 .allSatisfy(permission -> assertThat(permission).startsWith("SELF_"));
 
         assertThat(permissionNames(role(RoleName.CANDIDATE)))
-                .allSatisfy(permission -> assertThat(permission)
-                        .matches(name -> name.startsWith("SELF_") || name.equals(Permissions.JOB_READ)));
+                .allSatisfy(permission -> assertThat(permission).startsWith("SELF_"));
+    }
+
+    @Test
+    @DisplayName("CANDIDATE cannot read the internal job pipeline")
+    void candidateCannotReadStaffJobEndpoints() {
+        // Granted by V2 and revoked by V7. JOB_READ guards GET /api/v1/jobs,
+        // which returns the client each vacancy is raised for, unannounced
+        // drafts, and how many people have applied. A candidate holding it
+        // could read all three - defeating the whole reason JobDtos keeps
+        // separate public and staff response records.
+        //
+        // Candidates lose nothing: the careers page and the apply form are
+        // anonymous, and their own applications are gated on SELF_*.
+        assertThat(permissionNames(role(RoleName.CANDIDATE)))
+                .as("a candidate must not be able to see which client a vacancy is for")
+                .doesNotContain(Permissions.JOB_READ, Permissions.JOB_MANAGE);
+
+        // And the permission still means something to the roles that run
+        // recruitment, or the annotation would guard nothing.
+        assertThat(permissionNames(role(RoleName.HR_RECRUITER)))
+                .contains(Permissions.JOB_READ, Permissions.JOB_MANAGE);
     }
 
     @Test

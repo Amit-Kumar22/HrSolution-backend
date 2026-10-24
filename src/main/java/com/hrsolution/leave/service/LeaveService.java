@@ -54,7 +54,7 @@ public class LeaveService {
     public LeaveDtos.Response apply(LeaveDtos.SelfRequest request,
                                     AuthenticatedUser caller,
                                     RequestContext context) {
-        Worker worker = workerRepository.findByUserId(caller.id())
+        Worker worker = workerRepository.findOne(org.springframework.data.jpa.domain.Specification.where((root, query, cb) -> cb.equal(root.get("user").get("id"), caller.id())))
                 .orElseThrow(() -> ResourceNotFoundException.of("Worker", caller.id()));
         if (request.fromDate().isAfter(request.toDate())) {
             throw new BusinessRuleException("The end date cannot be before the start date.");

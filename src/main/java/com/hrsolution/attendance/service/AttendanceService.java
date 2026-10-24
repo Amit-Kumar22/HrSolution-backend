@@ -116,7 +116,7 @@ public class AttendanceService {
         LocalDate start = ym.atDay(1);
         LocalDate end = ym.atEndOfMonth();
 
-        List<Deployment> deployments = deploymentRepository.findActiveAtSiteForPeriod(siteId, start, end);
+        List<Deployment> deployments = deploymentRepository.findActiveAtSiteOn(siteId, start);
         if (deployments.isEmpty()) {
             throw new BusinessRuleException("No active deployments found for this site in the period.");
         }

@@ -16,7 +16,7 @@ public interface AttendanceMapper {
     AttendanceDtos.EntryResponse toEntryResponse(AttendanceEntry entry);
 
     @Mapping(target = "clientId", expression = "java(sheet.getClient().getId())")
-    @Mapping(target = "clientName", expression = "java(sheet.getClient().getCompanyName())")
+    @Mapping(target = "clientName", expression = "java(sheet.getClient().getTradeName() != null ? sheet.getClient().getTradeName() : sheet.getClient().getLegalName())")
     @Mapping(target = "siteId", expression = "java(sheet.getSite().getId())")
     @Mapping(target = "siteCode", expression = "java(sheet.getSite().getSiteCode())")
     @Mapping(target = "siteName", expression = "java(sheet.getSite().getSiteName())")
@@ -30,7 +30,7 @@ public interface AttendanceMapper {
     AttendanceDtos.Response toResponse(AttendanceSheet sheet);
 
     @Mapping(target = "clientId", expression = "java(sheet.getClient().getId())")
-    @Mapping(target = "clientName", expression = "java(sheet.getClient().getCompanyName())")
+    @Mapping(target = "clientName", expression = "java(sheet.getClient().getTradeName() != null ? sheet.getClient().getTradeName() : sheet.getClient().getLegalName())")
     @Mapping(target = "siteId", expression = "java(sheet.getSite().getId())")
     @Mapping(target = "siteCode", expression = "java(sheet.getSite().getSiteCode())")
     @Mapping(target = "siteName", expression = "java(sheet.getSite().getSiteName())")

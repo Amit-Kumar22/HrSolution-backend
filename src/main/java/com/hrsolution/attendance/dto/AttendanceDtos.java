@@ -49,7 +49,7 @@ public final class AttendanceDtos {
             int month,
             int year,
             AttendanceSheetStatus status,
-            List<AttendanceEntryStatus> allowedNextStatuses,
+            List<AttendanceSheetStatus> allowedNextStatuses,
             boolean locked,
             Instant submittedAt,
             String submittedBy,

@@ -1,6 +1,8 @@
-# Phase 6 & 7 Summary (For Frontend)
+# Summary (For Next Work)
 
-## Phase 6: Workers, Requisitions, Deployments, Encrypted Documents
+**********************************************
+## 1: Workers, Requisitions, Deployments, Encrypted Documents
+**********************************************
 
 ### Requisitions
 **Base:** `/api/v1/requisitions` (Auth required, `REQUISITION_READ/CREATE/APPROVE`)
@@ -57,7 +59,9 @@
 
 **Critical rules:** No overlapping ACTIVE deployments for a worker (null `endDate` = open-ended). Security category requires police verification `VERIFIED/NOT_REQUIRED`. Rate card resolved by (category+site/client) on start date and **snapshotted**. Posting updates worker status (ON_BENCH<->DEPLOYED) and requisition fulfilment.
 
-## Phase 7: Attendance, Leave, Holidays
+**********************************************
+## 2: Attendance, Leave, Holidays
+**********************************************
 
 ### Attendance
 **Base:** `/api/v1/attendance` (Auth required, `ATTENDANCE_READ/MARK/APPROVE`)
@@ -111,7 +115,9 @@
 
 ## Role & Panel Mapping (Who can access what)
 
-### Phase 6 Mapping
+**********************************************
+### 1 Mapping
+**********************************************
 
 #### Requisitions (`/api/v1/requisitions`)
 | Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
@@ -149,7 +155,9 @@
 | Release deployment | ✅ | ✅ | ✅ | - | - | - | - | - | - | Ops | Release with reason |
 | View deployed workers at site | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Own only | - | - | Staff/Supervisor/Client | For attendance context |
 
-### Phase 7 Mapping
+**********************************************
+### 2 Mapping
+**********************************************
 
 #### Attendance (`/api/v1/attendance`)
 | Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |

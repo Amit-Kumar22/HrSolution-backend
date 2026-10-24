@@ -107,3 +107,87 @@
 - **Rate cards:** Never edited in place - deployment uses snapped rate from applicable rate card.
 - **Requisitions:** Fulfilment computed from deployments, not stored.
 - **No overlapping deployments:** Posting will fail if worker has overlapping ACTIVE deployment.
+
+
+## Role & Panel Mapping (Who can access what)
+
+### Phase 6 Mapping
+
+#### Requisitions (`/api/v1/requisitions`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| List requisitions | ✅ | ✅ | ✅ | ✅ | - | - | Own only | - | - | Staff Ops / Client Portal | Staff: full list with filters; Client: "My Requisitions" |
+| View requisition + detail/trail | ✅ | ✅ | ✅ | ✅ | - | - | Own only | - | - | Staff Ops / Client Portal | Detail drawer with status history |
+| Create requisition | ✅ | ✅ | ✅ | - | - | - | ✅ | - | - | Client Portal / Ops | Client: "Raise Requirement"; Staff: can create on client's behalf |
+| Submit requisition (DRAFT->SUBMITTED) | ✅ | ✅ | ✅ | - | - | - | ✅ | - | - | Client Portal / Ops | Show "Submit for Approval" |
+| Approve/Reject requisition | ✅ | ✅ | ✅ | - | - | - | - | - | - | Staff Ops (Approvals) | Approvals queue for OM/ADMIN/SA |
+| Cancel requisition | ✅ | ✅ | ✅ | - | - | - | ✅ (own) | - | - | Client Portal / Ops | Cancel with confirmation |
+| Urgent list | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | Ops Dashboard | "Urgent to Fill" widget |
+
+#### Workers (`/api/v1/workers`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| List workers | ✅ | ✅ | ✅ | ✅ | - | ✅ | - | - | - | Staff HR/Ops/Accounts | Master list with status, deployment, verification |
+| View worker profile (masked) | ✅ | ✅ | ✅ | ✅ | - | ✅ | - | Self* | - | Staff/Worker Portal | Profile card |
+| View sensitive (Aadhaar/PAN unmasked) | ✅ | ✅ | ✅ | - | - | ✅ | - | - | - | Staff (Restricted) | "View Sensitive" -> audited, reveal masked value |
+| Create worker manually | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops | "Add Worker" form |
+| Convert from JOINED application | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | Recruitment/HR | From Application Detail -> "Convert to Worker" |
+| Update worker | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops | Edit profile |
+| Police verification | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops | Affects security deployment (FAILED blocks) |
+| Exit worker (Resign/Terminate) | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops | Exit modal (blocked if active deployment) |
+| Manage bank details | ✅ | ✅ | ✅ | ✅ | - | ✅ | - | Self* | - | HR/Ops/Accounts/Worker | Masked by default |
+| Manage worker documents | ✅ | ✅ | ✅ | ✅ | - | - | - | Self* | - | HR/Ops/Worker | Upload + verify |
+| Manage salary structure | ✅ | ✅ | ✅ | - | - | ✅ | - | - | - | HR/Accounts | Effective dated history |
+
+#### Deployments (`/api/v1/deployments`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| List deployments | ✅ | ✅ | ✅ | ✅ | - | ✅ | Own only | - | - | Staff/Client Portal | Filter by site/worker/requisition/status |
+| View deployment details | ✅ | ✅ | ✅ | ✅ | - | ✅ | Own only | - | - | Staff/Client Portal | Shows snapshot rates |
+| Create deployment/posting | ✅ | ✅ | ✅ | - | - | - | - | - | - | Ops | "Post Worker" (checks overlap/security/rate card) |
+| Transfer deployment | ✅ | ✅ | ✅ | - | - | - | - | - | - | Ops | Transfer modal |
+| Release deployment | ✅ | ✅ | ✅ | - | - | - | - | - | - | Ops | Release with reason |
+| View deployed workers at site | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Own only | - | - | Staff/Supervisor/Client | For attendance context |
+
+### Phase 7 Mapping
+
+#### Attendance (`/api/v1/attendance`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| List attendance sheets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Own only | - | - | Staff/Supervisor/Client/Accounts | By site/month/year |
+| View sheet + entries | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Own only | - | - | All relevant | Day-wise grid |
+| Generate sheet | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - | - | Ops/Supervisor | From active deployments |
+| Mark/edit entries (DRAFT) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - | - | Supervisor/Ops | Editable grid |
+| Submit sheet (DRAFT->SUBMITTED) | ✅ | ✅ | ✅ | ✅ | ✅ | - | - | - | - | Supervisor/Ops | Send for client approval |
+| Approve sheet (SUBMITTED->CLIENT_APPROVED) | ✅ | ✅ | ✅ | - | - | - | ✅ | - | - | Client Portal | Review & approve |
+| Lock sheet (CLIENT_APPROVED->LOCKED) | ✅ | ✅ | ✅ | - | - | - | - | - | - | Ops/Admin | Lock for payroll (immutable) |
+| Unlock sheet (LOCKED->DRAFT) | ✅ | ✅ | - | - | - | - | - | - | - | Admin only | Requires reason, audited |
+
+#### Leave (`/api/v1/leave`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| List leave requests | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops/Admin | Approver queue |
+| Apply for leave (self) | - | - | - | - | - | - | - | ✅ | - | Worker Portal | Apply with dates/type/reason |
+| Approve leave | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops/Admin | Approve pending |
+| Reject leave (with reason) | ✅ | ✅ | ✅ | ✅ | - | - | - | - | - | HR/Ops/Admin | Reason required |
+| Cancel leave (self, pending) | - | - | - | - | - | - | - | ✅ | - | Worker Portal | Cancel pending only |
+| View own leave history | - | - | - | - | - | - | - | ✅ | - | Worker Portal | "My Leaves" |
+
+#### Holidays (`/api/v1/holidays`)
+| Action | SA | AD | OM | HR | SS | AC | CL | WK | CD | Panel | UI Suggestion |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| View holiday calendar | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | - | All authenticated | Calendar (national + state) |
+| Add/Edit/Delete holiday | ✅ | ✅ | - | - | - | - | - | - | - | Admin Settings | SETTINGS_MANAGE required |
+
+### Menu Placement Suggestions
+| Panel | Suggested Menu Items |
+|---|---|
+| **Client Portal** | Dashboard, My Company, Sites, Contracts, Rates, **My Requisitions**, **Deployed Workers**, **Attendance Approval** |
+| **HR/Recruitment** | Jobs, Candidates, Applications, Interviews, **Workers**, **Requisitions** |
+| **Operations Manager** | **Requisitions** (Approve/Queue), **Deployments**, **Workers**, Sites/Clients, **Attendance** (Generate/Submit) |
+| **Site Supervisor** | **Attendance** (Mark for assigned sites), Workers at site |
+| **Accounts/Finance** | Clients, **Workers** (Sensitive if allowed), **Attendance** (Read/Lock), Payroll (Phase 8), Billing (Phase 9) |
+| **Worker Portal** | My Profile, My Documents, **My Leave**, **My Attendance**, Payslips (Phase 8) |
+| **Admin/SA** | Requisitions, Workers, Deployments, **Attendance**, **Leave Approvals**, **Holidays**, Users/Roles, Audit |
+
+*\*Self-service applicable as per permission.*

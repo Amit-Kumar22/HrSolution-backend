@@ -656,13 +656,28 @@ and **activates the login**.
 
 | Action | Endpoint | Permission |
 |---|---|---|
-| Approve + create client record | `POST /clients/approve-registration/{userId}` | `CLIENT_APPROVE` |
-| Approve (user record only) | `PATCH /users/{userId}/approve-client` | `CLIENT_APPROVE` |
+| **Approve a registration** | `POST /clients/approve-registration/{userId}` | `CLIENT_APPROVE` |
+| Reactivate an already-linked login | `PATCH /users/{userId}/approve-client` | `CLIENT_APPROVE` |
 | Reject | `PATCH /users/{userId}/reject-client` | `CLIENT_APPROVE` |
 
-**Use `POST /clients/approve-registration/{userId}` for the real workflow.** It is the
-one that produces a usable client. The `/users/...` variants only move the user's status
-and leave no client record behind.
+**`POST /clients/approve-registration/{userId}` is the approval button.** It is the only
+call that produces a usable client, and it does all three things in one transaction.
+
+**`PATCH /users/{userId}/approve-client` is not an alternative to it.** It activates the
+login only, and it **refuses with 422** when the user has no `client_users` link:
+
+```json
+{ "errorCode": "BUSINESS_RULE_VIOLATION", "status": 422,
+  "detail": "This login is not linked to a client company, so activating it alone would
+             let the user sign in and see nothing. Use
+             POST /api/v1/clients/approve-registration/20 instead - it creates the client
+             record and links this login in one step." }
+```
+
+That is the correct response, not a bug: every client-scoped screen resolves through
+`client_users`, so activating the login alone would produce an account that signs in and
+sees nothing. The endpoint exists only for the rare case of re-enabling a login whose
+client record already exists. **Don't wire it to the approval button.**
 
 Body is `ClientApproveRegistrationRequest`. `legalName` is required and pre-fills from the
 user's `pendingCompanyName`:
@@ -928,7 +943,7 @@ fits; incremental add/remove buttons do not.
 | Disable | **U** | `PATCH /users/{userId}/disable` | `USER_MANAGE` |
 | Re-enable | **U** | `PATCH /users/{userId}/enable` | `USER_MANAGE` |
 | Clear lockout | **U** | `PATCH /users/{userId}/unlock` | `USER_MANAGE` |
-| Approve client reg. | **U** | `PATCH /users/{userId}/approve-client` | `CLIENT_APPROVE` |
+| Reactivate a linked client login | **U** | `PATCH /users/{userId}/approve-client` | `CLIENT_APPROVE` |
 | Reject client reg. | **U** | `PATCH /users/{userId}/reject-client` | `CLIENT_APPROVE` |
 | **Self-test authorities** | **R** | `GET /users/permissions-check` | authenticated |
 
@@ -1786,10 +1801,7 @@ const can = (p: string) => user.permissions.includes(p);
 | `SELF_APPLICATION_MANAGE` | Candidate portal — own applications, apply, withdraw |
 | *(authenticated)* | `GET /settings/company`, master-data reads, documents, own sessions |
 
-Permissions seeded but with **no endpoints yet** (Phases 6–11) — don't build menus for
-these: `ATTENDANCE_*`, `LEAVE_APPROVE`, `DEPLOYMENT_*`, `WORKER_*`, `REQUISITION_*`,
-`PAYROLL_*`, `INVOICE_*`, `PAYMENT_MANAGE`, `COMPLIANCE_*`, `REPORT_VIEW`,
-`SELF_PAYSLIP_READ`, `SELF_ATTENDANCE_READ`, `SELF_LEAVE_MANAGE`.
+Phase 6 endpoints are available. Permissions seeded with no endpoints yet for later phases — don't build menus for: `ATTENDANCE_*`, `LEAVE_APPROVE`, `PAYROLL_*`, `INVOICE_*`, `PAYMENT_MANAGE`, `COMPLIANCE_*`, `REPORT_VIEW`, `SELF_PAYSLIP_READ`, `SELF_ATTENDANCE_READ`, `SELF_LEAVE_MANAGE`.
 
 **Hiding a control is cosmetic.** The backend enforces every rule independently; a hidden
 button that gets called anyway returns `403`. Hide for clarity, not for security.
@@ -1798,12 +1810,11 @@ button that gets called anyway returns `403`. Hide for clarity, not for security
 
 ## 12. Not built yet
 
-Phases 1–4 are complete. These exist as **permissions and roles only** — no endpoints.
+Phases 1–6 are complete. These exist as **permissions and roles only** — no endpoints.
 Don't design screens against them yet.
 
 | Phase | Scope | Affected panel |
 |---|---|---|
-| 6 | Workers, encrypted documents, deployment, requisition workflow | Staff (OPS), Worker |
 | 7 | Attendance & leave — supervisor entry, Excel upload, client approval | Staff (SUPERVISOR), Client, Worker |
 | 8 | Payroll — statutory engine, payslip PDF, bank/PF/ESI exports | Staff (ACCOUNTS) |
 | 9 | Billing & invoicing — GST invoices, payments, ageing | Staff (ACCOUNTS), Client |
@@ -1812,11 +1823,9 @@ Don't design screens against them yet.
 
 What this means in practice today:
 
-- **SITE_SUPERVISOR and WORKER have no feature screens.** Ship the auth shell.
+- **SITE_SUPERVISOR and WORKER have no feature screens yet.** Ship the auth shell (Phase 7 will add attendance/leave).
 - **CANDIDATE is now a real panel** — profile, CV, applications, withdraw. See Panel D.
-- **The client portal is read-only and thin** — company, sites, contracts, rates. Invoices
-  and deployed-worker lists come in Phases 9 and 6. Requisitions ("I need 20 guards at
-  this site") are Phase 6, which is where `REQUISITION_CREATE` finally does something.
+- **The client portal** — company, sites, contracts, rates, requisitions, deployed workers are available (Phase 6). Invoices come in Phase 9.
 - **There is no dashboard API.** Build the staff landing page from what exists:
   `GET /contact-messages/unread-count`, `GET /enquiries?status=NEW` (read `totalElements`),
   `GET /clients?status=ACTIVE`, `GET /users?status=PENDING_APPROVAL`,

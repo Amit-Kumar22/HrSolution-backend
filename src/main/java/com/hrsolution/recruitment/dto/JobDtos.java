@@ -2,7 +2,7 @@ package com.hrsolution.recruitment.dto;
 
 import com.hrsolution.catalog.entity.SkillLevel;
 import com.hrsolution.recruitment.entity.JobStatus;
-import com.hrsolution.recruitment.entity.Shift;
+import com.hrsolution.common.domain.Shift;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -52,6 +52,10 @@ public final class JobDtos {
             String clientName,
             Long siteId,
             String siteName,
+            @Schema(description = "The client demand this advert sources for, if any. "
+                    + "Never shown on the public site.")
+            Long requisitionId,
+            String requisitionNumber,
 
             String location,
             String city,
@@ -144,6 +148,11 @@ public final class JobDtos {
 
             @Schema(description = "Which site. Must belong to clientId if both are given.")
             Long siteId,
+
+            @Schema(description = "The client demand this advert sources for. Optional - "
+                    + "speculative hiring for a role the company expects to need is normal. "
+                    + "Must belong to clientId if both are given.")
+            Long requisitionId,
 
             @Size(max = 200)
             @Schema(example = "MIDC Bhosari, Pune")

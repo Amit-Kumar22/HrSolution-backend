@@ -137,9 +137,23 @@ applied. The careers page and the apply form are anonymous and need no
 permission at all, so candidates lost nothing. See `docs/decisions.md` §42.
 
 **External roles hold no `WORKER_SENSITIVE_READ`.** Unmasked Aadhaar, PAN and
-bank account numbers are visible only to `SUPER_ADMIN` and `ACCOUNTS`, who need
-them to file returns and run bank transfers. Everyone else sees
-`XXXX-XXXX-1234`.
+bank account numbers are visible only to `SUPER_ADMIN`, `ADMIN` and
+`ACCOUNTS` — `ACCOUNTS` needs them to file PF and ESI returns and to build the
+bank transfer file. Everyone else sees `XXXX-XXXX-1234`, and every unmasked
+read writes a `SENSITIVE_DATA_ACCESSED` row to the audit trail.
+
+> This paragraph said "only `SUPER_ADMIN` and `ACCOUNTS`" until Phase 6, which
+> is when the permission first guarded anything and the mismatch with the
+> matrix above — and with the V2 seed — became visible. The seed is the
+> behaviour, so the prose was corrected to match it rather than the other way
+> round.
+>
+> **Whether `ADMIN` should hold it is a policy question worth settling.** An
+> admin runs the business but does not file the statutory returns, so least
+> privilege argues for revoking it; against that, an admin investigating a
+> payroll query would have to ask `ACCOUNTS` to read a number for them. It is
+> one `DELETE` in a new migration if you want it narrowed — see V7 for the
+> pattern.
 
 **`CONTENT_MANAGE` is separate from `SETTINGS_MANAGE`.** Rewording a services
 page or adding a manpower category is routine marketing and master-data work,

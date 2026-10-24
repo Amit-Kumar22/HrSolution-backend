@@ -27,6 +27,27 @@ public class AppProperties {
     private final Mail mail = new Mail();
     private final Storage storage = new Storage();
     private final Site site = new Site();
+    private final Crypto crypto = new Crypto();
+
+    @Getter
+    @Setter
+    public static class Crypto {
+
+        /**
+         * Base64-encoded 256-bit AES key for the encrypted worker columns
+         * (Aadhaar, PAN, bank account number).
+         *
+         * <p>Empty by default so a misconfigured deployment fails at startup
+         * rather than silently writing plaintext into a column named
+         * {@code _encrypted}. The {@code local} profile sets a throwaway key;
+         * dev and prod must supply {@code FIELD_ENCRYPTION_KEY}.
+         *
+         * <p><strong>Back this up separately from the database.</strong> Losing
+         * it makes those columns permanently unreadable; storing it beside the
+         * dumps defeats the point of encrypting them.
+         */
+        private String fieldEncryptionKey = "";
+    }
 
     @Getter
     @Setter

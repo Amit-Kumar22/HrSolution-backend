@@ -46,6 +46,19 @@ public enum AuditAction {
     CLIENT_APPROVED,
     CLIENT_REJECTED,
 
+    // ---------- Sensitive data, from Phase 6 ----------
+
+    /**
+     * Someone read an unmasked Aadhaar, PAN or bank account number.
+     *
+     * <p>Its own action rather than a {@code UPDATE} with a description,
+     * because "who looked up whose identifiers, and when" is a question a DPDP
+     * audit asks directly, and it has to be answerable with a filter rather
+     * than a text search. Written on every call to the sensitive-read endpoint
+     * even though nothing changed - the access *is* the event.
+     */
+    SENSITIVE_DATA_ACCESSED,
+
     // ---------- Generic entity changes, from Phase 4 ----------
     CREATE,
     UPDATE,

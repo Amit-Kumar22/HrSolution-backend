@@ -22,6 +22,8 @@ import com.hrsolution.recruitment.entity.JobStatus;
 import com.hrsolution.recruitment.mapper.RecruitmentMapper;
 import com.hrsolution.recruitment.repository.ApplicationRepository;
 import com.hrsolution.recruitment.repository.JobRepository;
+import com.hrsolution.requisition.entity.Requisition;
+import com.hrsolution.requisition.repository.RequisitionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -68,6 +70,7 @@ public class JobService {
     private final ManpowerCategoryRepository categoryRepository;
     private final ClientRepository clientRepository;
     private final ClientSiteRepository siteRepository;
+    private final RequisitionRepository requisitionRepository;
     private final RecruitmentMapper mapper;
     private final AuditService auditService;
 
@@ -162,6 +165,7 @@ public class JobService {
         job.setSlug(slug);
         job.setCategory(loadCategory(request.categoryId()));
         applyClientAndSite(job, request.clientId(), request.siteId());
+        applyRequisition(job, request.requisitionId());
         job.setOpenings(request.openings() == null ? 1 : request.openings());
         job.setDisplayOrder(request.displayOrder() == null ? 0 : request.displayOrder());
         // Always starts as a draft. Publishing is a separate, audited decision -
@@ -209,6 +213,7 @@ public class JobService {
         job.setSlug(newSlug);
         job.setCategory(loadCategory(request.categoryId()));
         applyClientAndSite(job, request.clientId(), request.siteId());
+        applyRequisition(job, request.requisitionId());
         if (request.openings() != null) {
             job.setOpenings(request.openings());
         }
@@ -369,6 +374,43 @@ public class JobService {
         job.setSite(site);
     }
 
+    /**
+     * Resolves the optional requisition, checking it belongs to the same client.
+     *
+     * <p>A job sourcing for another client's requirement would route its
+     * applicants to the wrong place, and because neither the client nor the
+     * requisition appears on the public advert, nothing about the mistake is
+     * visible from outside.
+     */
+    private void applyRequisition(Job job, Long requisitionId) {
+        if (requisitionId == null) {
+            job.setRequisition(null);
+            return;
+        }
+
+        Requisition requisition = requisitionRepository.findActiveById(requisitionId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Requisition", requisitionId));
+
+        if (job.getClient() == null) {
+            // Inherit rather than refuse: the requisition already names a
+            // client, so asking the caller to repeat it is pointless ceremony.
+            job.setClient(requisition.getClient());
+        } else if (!job.getClient().getId().equals(requisition.getClient().getId())) {
+            throw new BusinessRuleException(
+                    ("Requisition %s belongs to a different client, so this job cannot source "
+                            + "for it.").formatted(requisition.requisitionNumber()));
+        }
+
+        if (requisition.getStatus().isTerminal()) {
+            throw new BusinessRuleException(
+                    ("Requisition %s is %s, so there is nothing left to recruit for.")
+                            .formatted(requisition.requisitionNumber(),
+                                    requisition.getStatus()));
+        }
+
+        job.setRequisition(requisition);
+    }
+
     private void validateRanges(JobDtos.Request request) {
         if (request.salaryMin() != null && request.salaryMax() != null
                 && request.salaryMin().compareTo(request.salaryMax()) > 0) {
@@ -397,6 +439,7 @@ public class JobService {
                 base.id(), base.slug(), base.title(), base.summary(), base.description(),
                 base.categoryId(), base.categoryName(), base.skillLevel(),
                 base.clientId(), base.clientName(), base.siteId(), base.siteName(),
+                base.requisitionId(), base.requisitionNumber(),
                 base.location(), base.city(), base.state(),
                 base.openings(), committed, job.getOpenings() - committed, total,
                 base.salaryMin(), base.salaryMax(), base.salaryRangeLabel(),

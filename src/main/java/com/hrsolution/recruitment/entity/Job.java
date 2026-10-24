@@ -3,7 +3,9 @@ package com.hrsolution.recruitment.entity;
 import com.hrsolution.catalog.entity.ManpowerCategory;
 import com.hrsolution.client.entity.Client;
 import com.hrsolution.client.entity.ClientSite;
+import com.hrsolution.common.domain.Shift;
 import com.hrsolution.common.domain.SoftDeletableEntity;
+import com.hrsolution.requisition.entity.Requisition;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -74,6 +76,17 @@ public class Job extends SoftDeletableEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id")
     private ClientSite site;
+
+    /**
+     * The client demand this advert sources for.
+     *
+     * <p>Added by V8. Optional: speculative hiring for a role the company
+     * expects to need is normal, and a bench of trained guards is an asset. Also
+     * never exposed publicly - the requisition names the client.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "requisition_id")
+    private Requisition requisition;
 
     @Column(name = "location", length = 200)
     private String location;

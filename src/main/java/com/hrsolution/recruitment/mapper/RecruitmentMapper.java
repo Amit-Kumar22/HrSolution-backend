@@ -47,6 +47,12 @@ public interface RecruitmentMapper {
             expression = "java(entity.getSite() == null ? null : entity.getSite().getId())")
     @Mapping(target = "siteName",
             expression = "java(entity.getSite() == null ? null : entity.getSite().getSiteName())")
+    @Mapping(target = "requisitionId",
+            expression = "java(entity.getRequisition() == null ? null "
+                    + ": entity.getRequisition().getId())")
+    @Mapping(target = "requisitionNumber",
+            expression = "java(entity.getRequisition() == null ? null "
+                    + ": entity.getRequisition().requisitionNumber())")
     @Mapping(target = "salaryRangeLabel", expression = "java(entity.salaryRangeLabel())")
     @Mapping(target = "experienceLabel", expression = "java(entity.experienceLabel())")
     @Mapping(target = "expired", expression = "java(entity.hasExpiredOn(LocalDate.now()))")
@@ -93,6 +99,7 @@ public interface RecruitmentMapper {
     @Mapping(target = "category", ignore = true)
     @Mapping(target = "client", ignore = true)
     @Mapping(target = "site", ignore = true)
+    @Mapping(target = "requisition", ignore = true)
     // Has its own endpoint and its own audit event.
     @Mapping(target = "status", ignore = true)
     // Primitives with defaults: a null in the request must not zero them.

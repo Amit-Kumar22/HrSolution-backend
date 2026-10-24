@@ -5,7 +5,7 @@ and site management, manpower requisitions, recruitment, worker records,
 deployment, attendance, payroll with statutory deductions (PF / ESI / PT), GST
 invoicing and compliance tracking.
 
-**Status: Phase 5 (Recruitment: jobs, candidates, applications, interviews) complete.** See [Delivery phases](#delivery-phases).
+**Status: Phase 6 (Workers, requisitions, deployments, encrypted documents) complete.** See [Delivery phases](#delivery-phases).
 
 ---
 
@@ -591,7 +591,7 @@ Points worth being deliberate about:
 | 3 | Public website APIs & enquiries — company profile, services, industries, testimonials, enquiry/contact forms, file storage, SEO | **Done** |
 | 4 | Clients, sites, contracts, rate cards, skills master, client approval | **Done** |
 | 5 | Recruitment — jobs, candidates, applications pipeline, interviews | **Done** |
-| 6 | Workers, documents (encrypted fields), deployment, requisition workflow | Next |
+| 6 | Workers, documents (encrypted fields), deployment, requisition workflow | **Done** |
 | 7 | Attendance & leave — supervisor entry, Excel upload, client approval, locking | |
 | 8 | Payroll — configurable statutory engine, payslip PDF, bank/PF/ESI exports | |
 | 9 | Billing & invoicing — GST, invoice PDF, payments, credit notes, ageing | |

@@ -7,6 +7,16 @@ import org.mapstruct.MappingTarget;
 
 @Mapper
 public interface HolidayMapper {
+
+    @org.mapstruct.Mapping(target = "id", ignore = true)
+    @org.mapstruct.Mapping(target = "createdAt", ignore = true)
+    @org.mapstruct.Mapping(target = "updatedAt", ignore = true)
+    @org.mapstruct.Mapping(target = "createdBy", ignore = true)
+    @org.mapstruct.Mapping(target = "updatedBy", ignore = true)
+    @org.mapstruct.Mapping(target = "version", ignore = true)
+    @org.mapstruct.Mapping(target = "deleted", ignore = true)
+    @org.mapstruct.Mapping(target = "deletedAt", ignore = true)
+    @org.mapstruct.Mapping(target = "deletedBy", ignore = true)
     Holiday toEntity(HolidayDtos.Request request);
 
     HolidayDtos.Response toResponse(Holiday holiday);

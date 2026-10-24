@@ -1810,12 +1810,11 @@ button that gets called anyway returns `403`. Hide for clarity, not for security
 
 ## 12. Not built yet
 
-Phases 1–6 are complete. These exist as **permissions and roles only** — no endpoints.
+Phases 1–7 are complete. These exist as **permissions and roles only** — no endpoints.
 Don't design screens against them yet.
 
 | Phase | Scope | Affected panel |
 |---|---|---|
-| 7 | Attendance & leave — supervisor entry, Excel upload, client approval | Staff (SUPERVISOR), Client, Worker |
 | 8 | Payroll — statutory engine, payslip PDF, bank/PF/ESI exports | Staff (ACCOUNTS) |
 | 9 | Billing & invoicing — GST invoices, payments, ageing | Staff (ACCOUNTS), Client |
 | 10 | Compliance, reminders, notifications, dashboards, reports | Staff (ACCOUNTS) |
@@ -1823,9 +1822,9 @@ Don't design screens against them yet.
 
 What this means in practice today:
 
-- **SITE_SUPERVISOR and WORKER have no feature screens yet.** Ship the auth shell (Phase 7 will add attendance/leave).
+- **SITE_SUPERVISOR** can mark attendance; **CLIENT** can approve attendance sheets; **WORKER** can apply for/cancel leave (Phase 7). 
 - **CANDIDATE is now a real panel** — profile, CV, applications, withdraw. See Panel D.
-- **The client portal** — company, sites, contracts, rates, requisitions, deployed workers are available (Phase 6). Invoices come in Phase 9.
+- **The client portal** — company, sites, contracts, rates, requisitions, deployed workers, attendance approval are available (Phases 6–7). Invoices come in Phase 9.
 - **There is no dashboard API.** Build the staff landing page from what exists:
   `GET /contact-messages/unread-count`, `GET /enquiries?status=NEW` (read `totalElements`),
   `GET /clients?status=ACTIVE`, `GET /users?status=PENDING_APPROVAL`,

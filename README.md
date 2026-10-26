@@ -5,7 +5,7 @@ and site management, manpower requisitions, recruitment, worker records,
 deployment, attendance, payroll with statutory deductions (PF / ESI / PT), GST
 invoicing and compliance tracking.
 
-**Status: Phase 8 (Payroll — configurable statutory engine, payslip components, approvals) complete.** See [Delivery phases](#delivery-phases).
+**Status: Phase 9 (Billing & invoicing — GST, payments, credit notes) complete.** See [Delivery phases](#delivery-phases).
 
 ---
 
@@ -594,7 +594,7 @@ Points worth being deliberate about:
 | 6 | Workers, documents (encrypted fields), deployment, requisition workflow | **Done** |
 | 7 | Attendance & leave — supervisor entry, Excel upload, client approval, locking | **Done** |
 | 8 | Payroll — configurable statutory engine, payslip PDF, bank/PF/ESI exports | **Done** |
-| 9 | Billing & invoicing — GST, invoice PDF, payments, credit notes, ageing | |
+| 9 | Billing & invoicing — GST, invoice PDF, payments, credit notes, ageing | **Done** |
 | 10 | Compliance, reminders, notifications, dashboards, reports, audit viewer | |
 | 11 | Hardening — TOTP 2FA, security & performance review, CI pipeline | |
 

@@ -1810,12 +1810,11 @@ button that gets called anyway returns `403`. Hide for clarity, not for security
 
 ## 12. Not built yet
 
-Phases 1–7 are complete. These exist as **permissions and roles only** — no endpoints.
+Phases 1–8 are complete. These exist as **permissions and roles only** — no endpoints.
 Don't design screens against them yet.
 
 | Phase | Scope | Affected panel |
 |---|---|---|
-| 8 | Payroll — statutory engine, payslip PDF, bank/PF/ESI exports | Staff (ACCOUNTS) |
 | 9 | Billing & invoicing — GST invoices, payments, ageing | Staff (ACCOUNTS), Client |
 | 10 | Compliance, reminders, notifications, dashboards, reports | Staff (ACCOUNTS) |
 | 11 | Hardening — TOTP 2FA, CI pipeline | all |

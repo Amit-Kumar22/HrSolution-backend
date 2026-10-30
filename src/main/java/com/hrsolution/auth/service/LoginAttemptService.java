@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Optional;
 
 /**
@@ -40,7 +41,7 @@ public class LoginAttemptService {
     private final AuthProperties authProperties;
 
     /** Outcome of recording a failure, for the caller's audit message. */
-    public record FailureOutcome(int failedAttempts, int maxAttempts, boolean nowLocked) {
+    public record FailureOutcome(int failedAttempts, int maxAttempts, boolean nowLocked, Instant lockedUntil) {
     }
 
     /**
@@ -57,7 +58,7 @@ public class LoginAttemptService {
         Optional<User> maybeUser = userRepository.findById(userId);
         if (maybeUser.isEmpty()) {
             // Deleted between the credential check and here. Nothing to record.
-            return new FailureOutcome(0, lockout.getMaxAttempts(), false);
+            return new FailureOutcome(0, lockout.getMaxAttempts(), false, null);
         }
 
         User user = maybeUser.get();
@@ -70,7 +71,8 @@ public class LoginAttemptService {
                     user.getEmail(), user.getLockedUntil(), user.getFailedAttempts());
         }
 
-        return new FailureOutcome(user.getFailedAttempts(), lockout.getMaxAttempts(), nowLocked);
+        return new FailureOutcome(user.getFailedAttempts(), lockout.getMaxAttempts(), nowLocked,
+                nowLocked ? user.getLockedUntil() : null);
     }
 
     /**

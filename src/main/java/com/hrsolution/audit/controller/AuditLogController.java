@@ -49,8 +49,11 @@ public class AuditLogController {
                     * `action=TOKEN_REUSE_DETECTED` - possible refresh-token theft
                     * `action=LOGIN_FAILURE&successful=false` - failed sign-in attempts
                     * `action=ACCOUNT_LOCKED` - accounts locked by repeated failures
-                    * `userEmail=someone@example.com` - everything one person did
-                    """)
+                     * `userEmail=someone@example.com` - everything one person did
+                     *
+                     * Each entry also carries `reason`, `solution` and `clearTime`
+                     * for clearer incident detail (null fields are omitted).
+                     """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "A page of audit entries"),
             @ApiResponse(responseCode = "403", description = "Missing AUDIT_VIEW (ACCESS_DENIED)")

@@ -19,6 +19,12 @@ public record AuditLogResponse(
         @Schema(description = "Ties this entry to the request's log lines and error response")
         String correlationId,
         String description,
+        @Schema(description = "Human-readable reason for the event")
+        String reason,
+        @Schema(description = "Suggested remediation, where applicable")
+        String solution,
+        @Schema(description = "When the condition clears, e.g. lockout expiry")
+        Instant clearTime,
         String oldValues,
         String newValues,
         @Schema(description = "False for failed attempts, such as a rejected sign-in")

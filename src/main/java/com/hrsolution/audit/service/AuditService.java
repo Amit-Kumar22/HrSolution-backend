@@ -4,6 +4,7 @@ import com.hrsolution.audit.entity.AuditAction;
 import com.hrsolution.audit.entity.AuditLog;
 import com.hrsolution.audit.repository.AuditLogRepository;
 import com.hrsolution.common.web.RequestContext;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,12 +56,32 @@ public class AuditService {
                                     boolean successful,
                                     String description,
                                     RequestContext context) {
+        recordSecurityEvent(action, userId, userEmail, successful, description,
+                description, null, null, context);
+    }
+
+    /**
+     * Records a security event with explicit reason / solution / clear time.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordSecurityEvent(AuditAction action,
+                                    Long userId,
+                                    String userEmail,
+                                    boolean successful,
+                                    String description,
+                                    String reason,
+                                    String solution,
+                                    Instant clearTime,
+                                    RequestContext context) {
         AuditLog entry = new AuditLog();
         entry.setAction(action);
         entry.setUserId(userId);
         entry.setUserEmail(userEmail);
         entry.setSuccessful(successful);
         entry.setDescription(truncate(description));
+        entry.setReason(truncate(reason == null ? description : reason));
+        entry.setSolution(truncate(solution));
+        entry.setClearTime(clearTime);
         applyContext(entry, context);
         save(entry);
     }
@@ -79,6 +100,23 @@ public class AuditService {
                                    String oldValues,
                                    String newValues,
                                    RequestContext context) {
+        recordEntityChange(action, entityType, entityId, userId, userEmail, description,
+                description, null, null, oldValues, newValues, context);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordEntityChange(AuditAction action,
+                                   String entityType,
+                                   Long entityId,
+                                   Long userId,
+                                   String userEmail,
+                                   String description,
+                                   String reason,
+                                   String solution,
+                                   Instant clearTime,
+                                   String oldValues,
+                                   String newValues,
+                                   RequestContext context) {
         AuditLog entry = new AuditLog();
         entry.setAction(action);
         entry.setEntityType(entityType);
@@ -87,6 +125,9 @@ public class AuditService {
         entry.setUserEmail(userEmail);
         entry.setSuccessful(true);
         entry.setDescription(truncate(description));
+        entry.setReason(truncate(reason == null ? description : reason));
+        entry.setSolution(truncate(solution));
+        entry.setClearTime(clearTime);
         entry.setOldValues(oldValues);
         entry.setNewValues(newValues);
         applyContext(entry, context);

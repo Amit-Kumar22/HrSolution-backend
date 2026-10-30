@@ -6,6 +6,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -62,6 +63,18 @@ public class AuditLog extends BaseEntity {
 
     @Column(name = "description", length = 500)
     private String description;
+
+    /** Human-readable reason for the event. Falls back to {@link #description}. */
+    @Column(name = "reason", length = 500)
+    private String reason;
+
+    /** Suggested remediation, where applicable (e.g. for a locked account). */
+    @Column(name = "solution", length = 500)
+    private String solution;
+
+    /** When the condition clears, e.g. the lockout expiry instant. */
+    @Column(name = "clear_time")
+    private Instant clearTime;
 
     @Column(name = "old_values", columnDefinition = "TEXT")
     private String oldValues;

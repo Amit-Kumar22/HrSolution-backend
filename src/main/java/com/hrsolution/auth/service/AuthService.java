@@ -135,7 +135,10 @@ public class AuthService {
 
         if (user.isLocked()) {
             auditService.recordSecurityEvent(AuditAction.LOGIN_BLOCKED, user.getId(), email, false,
-                    "Sign-in attempted while locked until " + user.getLockedUntil(), context);
+                    "Sign-in attempted while locked until " + user.getLockedUntil(),
+                    "Account locked until " + user.getLockedUntil(),
+                    "Wait until the lockout expires or contact an administrator to unlock.",
+                    user.getLockedUntil(), context);
             throw new AuthExceptions.AccountLocked(user.lockRemainingSeconds());
         }
 
@@ -178,7 +181,10 @@ public class AuthService {
         if (outcome.nowLocked()) {
             auditService.recordSecurityEvent(AuditAction.ACCOUNT_LOCKED, user.getId(), user.getEmail(),
                     false, "Locked after %d failed attempts from ip=%s"
-                            .formatted(outcome.failedAttempts(), context.ipAddress()), context);
+                            .formatted(outcome.failedAttempts(), context.ipAddress()),
+                    "Locked after %d failed password attempts".formatted(outcome.failedAttempts()),
+                    "Wait for the lockout to expire or contact an administrator to unlock the account.",
+                    outcome.lockedUntil(), context);
         }
     }
 
